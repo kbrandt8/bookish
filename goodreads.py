@@ -10,6 +10,7 @@ class GoodReads:
 
     def get_books(self, url):
         soup = make_soup(url)
+        print(url)
         books = soup.find_all(attrs={"class": "bookalike review"})
         link_list = [{"title":
                           book.find(attrs={"class": "field title"}).a.text.replace("\n", "").strip(),
@@ -22,3 +23,5 @@ class GoodReads:
 
     def get_user(self):
         self.bookshelf = self.get_books(self.user_url)
+        for book in self.bookshelf:
+            print(book['isbn'],"???")

@@ -1,24 +1,25 @@
+from bs4.diagnose import rword
+
 from utils import make_soup
-from bs4 import BeautifulSoup
+import csv
+
+
 class StoryGraph():
-    def __init__(self,user=str):
-        self.user_url = f"https://app.thestorygraph.com/five_star_reads/{user}"
+    def __init__(self, file=str):
+        self.file = file
         self.bookshelf = []
-        self.get_user()
+        self.get_csv()
 
-    def get_books(self,url):
-        soup = make_soup(url)
-        books = soup.find_all(attrs={"class": "book-title-author-and-series"})
-        link_list = [{"title": book.a.text, "url": book.a['href']} for book in books]
-        return link_list
+    def get_csv(self):
+        with open (self.file,'r',encoding='utf-8',errors='ignore') as f:
+            reader = csv.DictReader(f)
+            self.bookshelf = [
+                {
+                    "Title":row['Title'],
+                    "ISBN":row['ISBN/UID'],
+                    "Author":row['Authors'],
+                }
+                for row in reader
+                if row['Star Rating'] and row['ISBN/UID'] and float(row['Star Rating']) >= 4]
 
-    def get_isbn(self,url):
-        soup = make_soup(f"https://app.thestorygraph.com/{url}")
-        isbn = soup.find(attrs={"class": "edition-info"}).p
-        return isbn.text.split(":")[1].strip()
-
-    def get_user(self):
-        self.bookshelf = self.get_books(self.user_url)
-        for book in self.bookshelf:
-            book['isbn'] = self.get_isbn(book['url'])
 
