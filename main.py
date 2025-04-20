@@ -14,6 +14,6 @@ user.good_reads_csv("goodreads_library_export.csv")
 # gr_user = GoodReads("189192928-kaitlyn")
 # print(gr_user.bookshelf)
 
-shelf = BookShelf(user.bookshelf)
+shelf = BookShelf(user.all_books)
 
 
