@@ -1,85 +1,72 @@
-from operator import truediv
-
 import requests
-from collections import defaultdict
+
 
 class BookShelf:
-    def __init__(self,books):
+    def __init__(self, books):
         self.books = books
-        self.subjects = defaultdict(int)
+        self.subjects = []
         self.bookshelf = []
         self.isbn_list = []
         self.recommendations = []
+        self.recommendations_isbn = []
         for book in self.books:
-            book_json = self.book_info(book)
-            if book_json is not None:
-                 self.bookshelf.append(book_json)
-        self.set_isbn_list()
+            self.book_info(book)
         self.set_subjects()
-        print(self.bookshelf)
-        print(self.subjects)
         for subject in self.subjects:
             self.search_subject(subject)
+        for key, book in enumerate(self.recommendations):
+            if self.check_if_owned(book):
+                print(book['title'])
+                self.recommendations.remove(self.recommendations[key])
 
 
 
-    def book_info(self,book):
-        url=f"https://openlibrary.org/api/volumes/brief/isbn/{book['ISBN']}.json"
+    def book_info(self, book):
+        url = f"https://openlibrary.org/search.json?title={book['Title']}&author={book['Author']}&fields=edition_key,title,subject,isbn,author"
         search = requests.get(url)
         result = search.json()
-        if result != []:
-            book_id = next(iter(result['records']), None)
-            book_info = result['records'][book_id]['data']
-            book_json = {'ISBN':book['ISBN'], 'Title':book['Title'], 'Author':book['Author'],'Subjects':book_info.get('subjects',[])}
-            return book_json
-        else:
-            return
-
+        for search_book in result['docs']:
+            if search_book['title'] == book['Title']:
+                self.subjects += search_book.get("subject", [])
+                self.isbn_list += search_book.get("isbn", [])
 
     def set_subjects(self):
-        for book in self.bookshelf:
-            if "Subjects" in book:
-                for subject in book['Subjects']:
-                    self.subjects[subject['name']] += 1
-        all_subjects = sorted(self.subjects.items(), key=lambda item: item[1], reverse=True)
-        self.subjects= [subject for subject,tally in all_subjects if tally > 5]
+        to_delete = ["Romans, nouvelles", "Fiction", "Large type books", "General", "Children's fiction",
+                     "Reading Level-Grade 11", "Reading Level-Grade 12"]
+        subject_tally = dict((i, self.subjects.count(i)) for i in self.subjects)
+        all_subjects = sorted(subject_tally.items(), key=lambda item: item[1], reverse=True)
+        new_subjects = [subject for subject, tally in all_subjects if subject not in to_delete and tally > 3]
+        self.subjects = new_subjects
 
-
-    def search_subject(self,subject):
-        url = f"https://openlibrary.org/search.json?subject={subject}&fields=edition_key,title,subject,isbn"
+    def search_subject(self, subject):
+        url = f"https://openlibrary.org/search.json?subject={subject}&fields=title,subject,isbn"
         search = requests.get(url)
         if 'application/json' in search.headers.get('Content-Type', ''):
-            print(search.headers.get('Content-Type')+"\n")
             search_json = search.json()
             books = search_json['docs']
             for book in books:
                 if "subject" in book:
-                    all_subjects=[subject for subject in book['subject']]
+                    all_subjects = [subject for subject in book['subject']]
                     shared_subjects = [subject for subject in all_subjects if subject in self.subjects]
-                    if len(shared_subjects) >= 4 and 'isbn' in book and not self.check_if_owned(book['isbn']):
+                    if len(shared_subjects) > 4 and 'isbn' in book:
                         self.recommendations.append(book)
-                        print(book['title'] + " has shared subjects: \n")
-                        print(shared_subjects)
-                        print("\n\n")
 
-
-
-
-    def rec_details(self,key):
-        url3 = f"https://openlibrary.org/{key}.json?details=true"
-
-    def check_if_owned(self,isbn):
-        for number in isbn:
-            if number in self.isbn_list:
+    def check_if_owned(self, book):
+        for owned_book in self.bookshelf:
+            if book['title'] == owned_book['Title']:
+                print(f"{book['title']} == {owned_book['Title']}")
                 return True
-            else:
-                return False
-    def set_isbn_list(self):
-        self.isbn_list = [book['ISBN'] for book in self.bookshelf]
+            elif book['title'] in owned_book['Title']:
+                print(f"{book['title']} in {owned_book['Title']}")
+                return True
+            elif owned_book['Title'] in book['title']:
+                print(f"  {owned_book['Title']} in {book['title']}")
+                return True
+            elif self.check_isbn(book['isbn']):
+                print("isbn")
+                return True
 
+            return False
 
-
-
-
-
-
+    def check_isbn(self, isbn):
+        return any(element in isbn for element in self.isbn_list)
