@@ -1,5 +1,5 @@
 import requests
-
+import csv
 
 class BookShelf:
     def __init__(self, books):
@@ -9,17 +9,22 @@ class BookShelf:
         self.isbn_list = []
         self.recommendations = []
         self.recommendations_isbn = []
+        self.edition_keys = []
+
+    def get_recs(self):
         for book in self.books:
             self.book_info(book)
         self.set_subjects()
         for subject in self.subjects:
             self.search_subject(subject)
-        for key, book in enumerate(self.recommendations):
-            if self.check_if_owned(book):
-                print(book['title'])
-                self.recommendations.remove(self.recommendations[key])
-
-
+        self.set_recs()
+        file = "recommendations.csv"
+        fields = ['Title','Subjects']
+        with open (file,'w',encoding='utf-8') as rec_file:
+            csvwriter = csv.writer(rec_file)
+            csvwriter.writerow(fields)
+            for book in self.recommendations:
+                csvwriter.writerow([book['title'],book['subject']])
 
     def book_info(self, book):
         url = f"https://openlibrary.org/search.json?title={book['Title']}&author={book['Author']}&fields=edition_key,title,subject,isbn,author"
@@ -29,6 +34,8 @@ class BookShelf:
             if search_book['title'] == book['Title']:
                 self.subjects += search_book.get("subject", [])
                 self.isbn_list += search_book.get("isbn", [])
+                self.edition_keys += search_book.get("edition_key",[])
+
 
     def set_subjects(self):
         to_delete = ["Romans, nouvelles", "Fiction", "Large type books", "General", "Children's fiction",
@@ -39,7 +46,7 @@ class BookShelf:
         self.subjects = new_subjects
 
     def search_subject(self, subject):
-        url = f"https://openlibrary.org/search.json?subject={subject}&fields=title,subject,isbn"
+        url = f"https://openlibrary.org/search.json?subject={subject}&fields=title,subject,isbn,key"
         search = requests.get(url)
         if 'application/json' in search.headers.get('Content-Type', ''):
             search_json = search.json()
@@ -49,24 +56,14 @@ class BookShelf:
                     all_subjects = [subject for subject in book['subject']]
                     shared_subjects = [subject for subject in all_subjects if subject in self.subjects]
                     if len(shared_subjects) > 4 and 'isbn' in book:
-                        self.recommendations.append(book)
+                        edited_book = {'title': book['title'],'isbn':book['isbn'],'subject':[subject for subject in book['subject'] if subject in self.subjects]}
+                        self.recommendations.append(edited_book)
 
-    def check_if_owned(self, book):
-        for owned_book in self.bookshelf:
-            if book['title'] == owned_book['Title']:
-                print(f"{book['title']} == {owned_book['Title']}")
-                return True
-            elif book['title'] in owned_book['Title']:
-                print(f"{book['title']} in {owned_book['Title']}")
-                return True
-            elif owned_book['Title'] in book['title']:
-                print(f"  {owned_book['Title']} in {book['title']}")
-                return True
-            elif self.check_isbn(book['isbn']):
-                print("isbn")
-                return True
-
-            return False
-
-    def check_isbn(self, isbn):
-        return any(element in isbn for element in self.isbn_list)
+    def set_recs(self):
+        new_recommendations = []
+        for key, book in enumerate(self.recommendations):
+           isbn = any(element in book['isbn'] for element in self.isbn_list)
+           if not isbn:
+               if book not in new_recommendations:
+                    new_recommendations.append(book)
+        self.recommendations = sorted(new_recommendations, reverse=True, key=lambda d: len(d['subject']))
