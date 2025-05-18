@@ -70,7 +70,6 @@ class BookShelf:
 
 
     def search_subject(self, subject):
-        print(subject+": \n")
         url = (f"https://openlibrary.org/search.json?subject={subject}&fields="
                f"title,subject,isbn,key,edition_key,author_name,"
                f"id_project_gutenberg,id_openstax,id_librivox,lending_edition_s")
@@ -87,7 +86,7 @@ class BookShelf:
                         edited_book = {
                             'title': book['title'],
                             'isbn':book['isbn'],
-                            'author':book.get('author_name',[]),
+                            'author':book.get('author_name',[])[0],
                             'key':book['key'],
                             'gutenberg_url':book.get("id_project_gutenberg",[]),
                             'standard_ebook':book.get("id_standard_ebooks",[]),

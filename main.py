@@ -7,7 +7,7 @@ app = create_app()
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True,threaded=True)
 
 def get_user_info(story_graph = False, good_reads=False):
     user = UserInfo()
@@ -24,10 +24,10 @@ def get_recs(book_shelf=None, genres=None):
         genres = []
     shelf = BookShelf()
     if book_shelf:
-        shelf.similar_books(book_shelf)
+        return shelf.similar_books(book_shelf)
     if genres:
-        shelf.books_from_subjects(genres)
-    return shelf
+        return shelf.books_from_subjects(genres)
+    return []
 
 
 

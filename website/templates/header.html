@@ -1,18 +1,15 @@
 <ul class="nav nav-tabs">
-  <li class="nav-item">
-  </li>
-  <li class="nav-item dropdown">
-    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">Search</a>
-    <ul class="dropdown-menu">
-      <li><a class="dropdown-item" href="{{url_for('views.search',search_type='library')}}">By Library</a></li>
-      <li><a class="dropdown-item" href="{{url_for('views.search',search_type='subject')}}">By Subject</a></li>
-    </ul>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link" href="{{url_for('views.watchlist')}}">WatchList</a>
-  </li>
-      <li class="nav-item">
-    <a class="nav-link" href="{{url_for('views.account')}}">Account</a>
-  </li>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{url_for('views.home')}}">Home</a>
+    </li>
+    <li class="nav-item">
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{url_for('views.recommendations')}}">Recommendations</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{url_for('views.account')}}">Account</a>
+    </li>
 
 </ul>
