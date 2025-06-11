@@ -46,3 +46,5 @@ class Subject(db.Model):
     name: Mapped[str] = mapped_column(String(250), nullable=False)
 
     books = relationship("Book", secondary=book_subjects, back_populates="subjects")
+
+

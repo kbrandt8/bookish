@@ -5,15 +5,14 @@
     <tr>
       <th scope="col">Title</th>
       <th scope="col">Author</th>
-      <th scope="col">link</th>
     </tr>
   </thead>
   <tbody>
   {% for item in result %}
     <tr>
-      <td>{{item.title}}</td>
-      <td>{{item.author}}</td>
-      <td><a href="https://openlibrary.org{{item.key}}">link</a></td>
+      <td>{{item.book.title}}</td>
+      <td>{{item.book.author}}</td>
+
     </tr>
   {% endfor %}
   </tbody>

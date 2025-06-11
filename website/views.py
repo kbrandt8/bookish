@@ -2,14 +2,14 @@ import json
 from threading import Thread, Lock
 
 from flask import Blueprint, render_template, redirect, url_for
-from flask_login import LoginManager, login_required,login_user,current_user, logout_user
+from flask import current_app
+from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from book_shelf import BookShelf
 from user_info import UserInfo
-
 from .forms import LoginForm, RegisterForm
-from .models import User,db
+from .models import User, db, Book, Subject, UserBook
 
 views = Blueprint('views', __name__)
 thread_lock = Lock()
@@ -31,23 +31,76 @@ def get_user_info(story_graph=False, good_reads=False):
     return user
 
 
-def get_subjects(type_of):
+def get_subjects(user_id):
+    user_books = UserBook.query.filter_by(user_id=user_id).all()
+
+    user_subjects = set()
+
+    for user_book in user_books:
+        book = user_book.book
+        if book:
+            for subject in book.subjects:
+                user_subjects.add(subject)
+
+    return list(user_subjects)
+
+
+def get_recs(user, type_of, books=None):
+    if books is None:
+        books = []
+    subjects = get_subjects(user)
+
+    shelf = BookShelf()
+    if type_of == "subject":
+        shelf.books_from_subjects(subjects)
+    elif type_of == "similar":
+        shelf.similar_books(books)
+
+    return shelf.recommendations
+
+
+def get_books():
     with open('recommendations.json', 'r') as f:
         data = json.load(f)
-        return data['subjects']
+        return data
 
 
-def get_recs(type_of):
-    subjects = get_subjects(type_of)
-    with Thread:
-        global RESULTS
-        shelf = BookShelf()
-        shelf.books_from_subjects(subjects)
-        RESULTS = shelf.recommendations
+def add_recs(user_id,type_of):
 
+    recs = get_recs(user_id,type_of)
+    user = User.query.get(user_id)
+    if not user:
+        print(f"User ID {user_id} not found.")
+        return
 
-def add_recs(user, recs):
-    pass
+    for book_data in recs:
+        title = book_data['title']
+        author = book_data['author']
+        link = f"https://openlibrary.org{book_data['key']}"
+        shared_subjects = book_data.get('shared_subjects', [])
+
+        book = Book.query.filter_by(title=title, author=author).first()
+        if not book:
+            book = Book(title=title, author=author, link=link)
+            db.session.add(book)
+
+        for subject_name in shared_subjects:
+            subject = Subject.query.filter_by(name=subject_name).first()
+            if not subject:
+                subject = Subject(name=subject_name)
+                db.session.add(subject)
+                db.session.flush()
+            if subject not in book.subjects:
+                book.subjects.append(subject)
+
+        db.session.flush()
+
+        existing_userbook = UserBook.query.filter_by(user_id=user.id, book_id=book.id).first()
+        if not existing_userbook:
+            user_book = UserBook(user_id=user.id, book_id=book.id, is_read=False)
+            db.session.add(user_book)
+
+    db.session.commit()
 
 
 @login_manager.user_loader
@@ -69,11 +122,10 @@ def register():
         password = generate_password_hash(form.password.data)
         in_db = User.query.filter_by(email=email).first()
         if not in_db:
-            new_user = User(email=email,name=name,password=password)
+            new_user = User(email=email, name=name, password=password)
             db.session.add(new_user)
             db.session.commit()
             return redirect(url_for('views.login'))
-
 
     return render_template("register.html", form=form)
 
@@ -84,7 +136,7 @@ def login():
     if form.validate_on_submit():
         email = form.email.data
         user = User.query.filter_by(email=email).first()
-        check_password = check_password_hash(user.password,form.password.data)
+        check_password = check_password_hash(user.password, form.password.data)
         if check_password:
             login_user(user)
             return redirect(url_for('views.account'))
@@ -93,26 +145,26 @@ def login():
 
 
 @views.route("/start_search/<type_of>")
-def start_task(type_of):
-    thread = Thread(target=get_recs, args=type_of)
-    thread.start()
-    thread.join()
-    return render_template("recommendations", result=RESULTS)
-
-
-@views.route("/search/<search_type>")
 @login_required
-def search(search_type):
-    return render_template("search.html", type=search_type)
+def start_task(type_of):
+    user = current_user.id
+    app = current_app._get_current_object()
+    def run_add_recs():
+        with app.app_context():
+            add_recs(user,type_of)
+    thread = Thread(target=run_add_recs)
+    thread.start()
+    return render_template("loading.html", result=RESULTS)
 
 
 @views.route("/recommendations")
 @login_required
 def recommendations():
-    global RESULTS
-    if RESULTS:
-        return render_template("results.html", result=RESULTS)
+    books = db.session.execute(db.select(UserBook).where(UserBook.user_id == current_user.id)).scalars().all()
+    if books:
+        return render_template("recommendations.html", result=books)
     else:
+
         return render_template("loading.html")
 
 
