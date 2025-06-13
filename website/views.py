@@ -184,3 +184,27 @@ def watchlist():
 def logout():
     logout_user()
     return redirect(url_for('views.home'))
+
+@views.route("/api/book_actions/<int:book_id>/<action>", methods=['GET', 'POST'])
+@login_required
+def book_actions(book_id,action):
+    user_book = (
+        db.session.query(UserBook)
+        .filter_by(book_id=book_id, user_id=current_user.id)
+        .first()
+    )
+    if not user_book:
+        return redirect(url_for("views.recommendations"))
+
+    if action == "delete":
+        db.session.delete(user_book)
+    elif action == "is_read":
+        user_book.is_read = True
+    elif action == "is_not_read":
+        user_book.is_read = False
+    else:
+        return redirect(url_for("views.recommendations"))
+
+
+    db.session.commit()
+    return redirect(url_for("views.recommendations"))

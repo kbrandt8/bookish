@@ -5,9 +5,6 @@
     </li>
     <li class="nav-item">
     </li>
-    <li class="nav-item">
-        <a class="nav-link" href="{{url_for('views.recommendations')}}">Recommendations</a>
-    </li>
 
     {% if not current_user.is_authenticated %}
     <li class="nav-item">
@@ -15,7 +12,9 @@
     </li>
     {% endif %}
     {% if current_user.is_authenticated %}
-
+    <li class="nav-item">
+        <a class="nav-link" href="{{url_for('views.recommendations')}}">Recommendations</a>
+    </li>
     <li class="nav-item">
         <a class="nav-link" href="{{url_for('views.account')}}">Account</a>
     </li>

@@ -5,6 +5,9 @@
     <tr>
       <th scope="col">Title</th>
       <th scope="col">Author</th>
+      <th scope="col">link</th>
+      <th scope="col">Delete</th>
+      <th scope="col">I've read this book</th>
     </tr>
   </thead>
   <tbody>
@@ -12,8 +15,12 @@
     <tr>
       <td>{{item.book.title}}</td>
       <td>{{item.book.author}}</td>
+      <td><a class="btn btn-outline-secondary" href="{{item.link}}"> 🔗 </a> </td>
+      <td><a class="btn btn-outline-secondary" href="{{url_for('views.book_actions',book_id=item.book.id,action='delete')}}"> ✘ </a> </td>
+      <td><a class="btn btn-outline-secondary" href="{{url_for('views.book_actions', book_id=item.book.id,action='is_read')}}"> ✔ </a> </td>
 
     </tr>
+
   {% endfor %}
   </tbody>
 </table>
