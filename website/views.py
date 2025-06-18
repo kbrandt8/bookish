@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from book_shelf import BookShelf
 from user_info import UserInfo
-from .forms import LoginForm, RegisterForm
+from .forms import LoginForm, RegisterForm, UploadForm
 from .models import User, db, Book, Subject, UserBook
 
 views = Blueprint('views', __name__)
@@ -22,12 +22,12 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-def get_user_info(story_graph=False, good_reads=False):
+def get_user_info(filename,story_graph=False, good_reads=False):
     user = UserInfo()
     if story_graph:
-        user.story_graph_csv("story_graph.csv")
+        user.story_graph_csv(filename)
     if good_reads:
-        user.good_reads_csv("goodreads_library_export.csv")
+        user.good_reads_csv(filename)
     return user
 
 
@@ -168,10 +168,16 @@ def recommendations():
         return render_template("loading.html")
 
 
-@views.route("/account")
+@views.route("/account", methods=['GET', 'POST'])
 @login_required
 def account():
-    return render_template("account.html")
+    form = UploadForm()
+    if form.validate_on_submit():
+        file = form.file.data
+        file_name = "user_data.csv"
+        file.save(file_name)
+
+    return render_template("account.html",form=form)
 
 
 @views.route("/watchlist")
