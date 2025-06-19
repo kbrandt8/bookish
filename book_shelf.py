@@ -2,6 +2,7 @@ import difflib
 
 import requests
 
+from rapidfuzz import fuzz
 
 class BookShelf:
     def __init__(self):
@@ -14,19 +15,15 @@ class BookShelf:
         self.owned_books = []
         self.subjects = []
 
-    def similar_books(self, books):
-        for book in books:
-            self.book_info(book)
-        self.set_subjects()
-        for subject in self.subjects:
-            self.search_subject(subject)
-        self.set_recs()
 
     def books_from_subjects(self, subjects):
-        print('Books from subjects')
-        self.subjects = subjects
+        self.subjects = [subject.name for subject in subjects]
+        self.set_subjects()
+        print(self.subjects)
         for subject in self.subjects:
             self.search_subject(subject)
+        print("finished searching!")
+
         self.set_recs()
 
     def book_info(self, book):
@@ -60,8 +57,20 @@ class BookShelf:
                      "Novela"]
         subject_tally = dict((i, self.subjects.count(i)) for i in self.subjects)
         all_subjects = sorted(subject_tally.items(), key=lambda item: item[1], reverse=True)
-        new_subjects = [subject for subject, tally in all_subjects if subject not in to_delete and tally > 3]
-        self.subjects = new_subjects[:15]
+        new_subjects = [subject for subject, tally in all_subjects if subject not in to_delete]
+        if len(new_subjects) > 20:
+            clusters = []
+            for subject in new_subjects:
+                placed = False
+                for cluster in clusters:
+                    if fuzz.partial_ratio(subject, cluster) >= 85:
+                        placed = True
+                        break
+                if not placed:
+                    clusters.append(subject)
+            self.subjects = clusters[:15]
+        else:
+            self.subjects = new_subjects[:15]
 
     def search_subject(self, subject):
         print(subject)
@@ -76,28 +85,26 @@ class BookShelf:
                 if "subject" in book:
                     all_subjects = [subject for subject in book['subject']]
                     shared_subjects = [subject for subject in all_subjects if subject in self.subjects]
-                    if 'isbn' in book:
-                        print(book['title'])
+                    if len(book.get('author_name',[])) > 0:
                         edited_book = {
-                            'title': book['title'],
-                            'isbn': book['isbn'],
-                            'author': book.get('author_name', [])[0],
-                            'key': book['key'],
+                            'Title': book.get("title",[]),
+                            'Author': book.get('author_name', [])[0],
+                            'Key': book.get("key",[]),
                             'gutenberg_url': book.get("id_project_gutenberg", []),
                             'standard_ebook': book.get("id_standard_ebooks", []),
                             'librivox': book.get("id_librivox", []),
                             'openstax': book.get("id_open_stax", []),
                             'edition_key': book.get('edition_key', ''),
                             'lending': book.get('lending_edition_s', ''),
-                            'subject': book.get('subject', ''),
+                            'Subjects': book.get('subject', ''),
                             'shared_subjects': shared_subjects}
                         self.recommendations.append(edited_book)
 
     def check_if_owned(self, book):
         isbn = any(element in book['isbn'] for element in self.isbn_list)
         edition_key = any(element in book['edition_key'] for element in self.edition_keys)
-        key = True if book['key'] in self.keys else False
-        title = True if book['title'] in self.owned_books else False
+        key = True if book['Key'] in self.keys else False
+        title = True if book['Title'] in self.owned_books else False
         if not isbn and not key and not edition_key and not title:
             return False
         else:

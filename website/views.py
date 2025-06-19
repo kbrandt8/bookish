@@ -36,7 +36,9 @@ def get_user_info(filename,story_graph=False, good_reads=False):
 
 
 def get_subjects(user_id):
-    user_books = UserBook.query.filter_by(user_id=user_id).all()
+    user_books = db.session.execute(db.select(UserBook).where(
+        UserBook.user_id == user_id,
+        UserBook.is_read == True)).scalars().all()
 
     user_subjects = set()
 
@@ -49,16 +51,14 @@ def get_subjects(user_id):
     return list(user_subjects)
 
 
-def get_recs(user, type_of, books=None):
-    if books is None:
-        books = []
+def get_recs(user):
+
     subjects = get_subjects(user)
 
     shelf = BookShelf()
-    if type_of == "subject":
-        shelf.books_from_subjects(subjects)
-    elif type_of == "similar":
-        shelf.similar_books(books)
+
+    shelf.books_from_subjects(subjects)
+
 
     return shelf.recommendations
 
@@ -146,18 +146,18 @@ def login():
     return render_template("login.html", form=form)
 
 
-@views.route("/start_search/<type_of>")
+@views.route("/start_search")
 @login_required
-def start_task(type_of):
+def start_task():
     user = current_user.id
     app = current_app._get_current_object()
     def run_add_recs():
         with app.app_context():
-            books = get_recs(user, type_of)
+            books = get_recs(user)
             add_books(user, books,False)
     thread = Thread(target=run_add_recs)
     thread.start()
-    return render_template("loading.html", result=RESULTS)
+    return render_template("loading.html")
 
 
 @views.route("/recommendations")
@@ -167,11 +167,8 @@ def recommendations():
         UserBook.user_id == current_user.id,
         UserBook.is_read == False
     )).scalars().all()
-    if books:
-        return render_template("recommendations.html", result=books)
-    else:
+    return render_template("recommendations.html", result=books)
 
-        return render_template("loading.html")
 
 
 @views.route("/account", methods=['GET', 'POST'])
@@ -231,7 +228,6 @@ def book_actions(book_id,action):
         user_book.is_read = False
     else:
         return redirect(url_for("views.recommendations"))
-
 
     db.session.commit()
     return redirect(url_for("views.recommendations"))
