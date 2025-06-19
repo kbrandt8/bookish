@@ -24,11 +24,15 @@ def load_user(user_id):
 
 def get_user_info(filename,story_graph=False, good_reads=False):
     user = UserInfo()
+    shelf = BookShelf()
     if story_graph:
         user.story_graph_csv(filename)
     if good_reads:
         user.good_reads_csv(filename)
-    return user
+    books = user.all_books
+    for book in books:
+        shelf.book_info(book)
+    return shelf.owned_books
 
 
 def get_subjects(user_id):
@@ -65,19 +69,17 @@ def get_books():
         return data
 
 
-def add_recs(user_id,type_of):
-
-    recs = get_recs(user_id,type_of)
+def add_books(user_id, books,read):
     user = User.query.get(user_id)
     if not user:
         print(f"User ID {user_id} not found.")
         return
 
-    for book_data in recs:
-        title = book_data['title']
-        author = book_data['author']
-        link = f"https://openlibrary.org{book_data['key']}"
-        shared_subjects = book_data.get('shared_subjects', [])
+    for book_data in books:
+        title = book_data['Title']
+        author = book_data['Author']
+        link = f"https://openlibrary.org{book_data['Key']}"
+        shared_subjects = book_data.get('Subjects', [])
 
         book = Book.query.filter_by(title=title, author=author).first()
         if not book:
@@ -97,7 +99,7 @@ def add_recs(user_id,type_of):
 
         existing_userbook = UserBook.query.filter_by(user_id=user.id, book_id=book.id).first()
         if not existing_userbook:
-            user_book = UserBook(user_id=user.id, book_id=book.id, is_read=False)
+            user_book = UserBook(user_id=user.id, book_id=book.id, is_read=read)
             db.session.add(user_book)
 
     db.session.commit()
@@ -151,7 +153,8 @@ def start_task(type_of):
     app = current_app._get_current_object()
     def run_add_recs():
         with app.app_context():
-            add_recs(user,type_of)
+            books = get_recs(user, type_of)
+            add_books(user, books,False)
     thread = Thread(target=run_add_recs)
     thread.start()
     return render_template("loading.html", result=RESULTS)
@@ -160,7 +163,10 @@ def start_task(type_of):
 @views.route("/recommendations")
 @login_required
 def recommendations():
-    books = db.session.execute(db.select(UserBook).where(UserBook.user_id == current_user.id)).scalars().all()
+    books = db.session.execute(db.select(UserBook).where(
+        UserBook.user_id == current_user.id,
+        UserBook.is_read == False
+    )).scalars().all()
     if books:
         return render_template("recommendations.html", result=books)
     else:
@@ -176,6 +182,21 @@ def account():
         file = form.file.data
         file_name = "user_data.csv"
         file.save(file_name)
+        story_graph = True if form.data_type.data == "sg" else False
+        good_reads = True if form.data_type.data == "gr" else False
+        user = current_user.id
+        app = current_app._get_current_object()
+
+        def run_add_recs():
+            with app.app_context():
+
+                user_books = get_user_info(file_name, story_graph=story_graph, good_reads=good_reads)
+                print("Finished books")
+                add_books(user, user_books,True)
+                print("books added")
+
+        thread = Thread(target=run_add_recs)
+        thread.start()
 
     return render_template("account.html",form=form)
 

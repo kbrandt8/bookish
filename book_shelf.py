@@ -1,3 +1,5 @@
+import difflib
+
 import requests
 
 
@@ -31,13 +33,27 @@ class BookShelf:
         url = f"https://openlibrary.org/search.json?title={book['Title']}&author={book['Author']}&fields=edition_key,title,subject,isbn,author_name,key"
         search = requests.get(url)
         result = search.json()
+        found_books = []
         for search_book in result['docs']:
             if book['Title'] in search_book['title'] and book['Author'] in search_book['author_name']:
-                self.owned_books.append(book['Title'])
+                book_object = {
+                    "Title": search_book.get("title", []),
+                    "Author": search_book.get("author_name", [])[0],
+                    "Key": search_book.get("key", []),
+                    "Subjects": search_book.get("subject", [])
+                }
                 self.subjects += search_book.get("subject", [])
                 self.isbn_list += search_book.get("isbn", [])
                 self.edition_keys += search_book.get("edition_key", [])
                 self.keys.append(search_book.get("key", []))
+                found_books.append(book_object)
+        if len(found_books) > 0:
+            titles = [book['Title'] for book in found_books]
+            closest_title = difflib.get_close_matches(book['Title'], titles)
+            if closest_title:
+                match = titles.index(closest_title[0])
+                self.owned_books.append(found_books[match])
+
 
     def set_subjects(self):
         to_delete = ["Romans, nouvelles", "Fiction", "Large type books", "General",
