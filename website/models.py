@@ -17,6 +17,7 @@ class UserBook(db.Model):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"),primary_key=True)
     book_id:Mapped[int] = mapped_column(ForeignKey("books.id"), primary_key=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_recommended: Mapped[bool] = mapped_column(Boolean, default=True)
 
     user = relationship("User", back_populates="user_books")
     book = relationship("Book", back_populates="user_books")
@@ -44,6 +45,7 @@ class Subject(db.Model):
     __tablename__ = "subjects"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(250), nullable=False)
+    is_recommended: Mapped[bool] = mapped_column(Boolean, default=True)
 
     books = relationship("Book", secondary=book_subjects, back_populates="subjects")
 

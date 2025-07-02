@@ -165,7 +165,8 @@ def start_task():
 def recommendations():
     books = db.session.execute(db.select(UserBook).where(
         UserBook.user_id == current_user.id,
-        UserBook.is_read == False
+        UserBook.is_read == False,
+        UserBook.is_recommended == True
     )).scalars().all()
     return render_template("recommendations.html", result=books)
 
@@ -226,6 +227,10 @@ def book_actions(book_id,action):
         user_book.is_read = True
     elif action == "is_not_read":
         user_book.is_read = False
+    elif action == "not_recommended":
+        user_book.is_recommended = False
+    elif action == "recommended":
+        user_book.is_recommended = True
     else:
         return redirect(url_for("views.recommendations"))
 
