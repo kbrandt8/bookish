@@ -22,7 +22,7 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-def get_user_info(filename,story_graph=False, good_reads=False):
+def get_user_info(filename, story_graph=False, good_reads=False):
     user = UserInfo()
     shelf = BookShelf()
     if story_graph:
@@ -33,6 +33,28 @@ def get_user_info(filename,story_graph=False, good_reads=False):
     for book in books:
         shelf.book_info(book)
     return shelf.owned_books
+
+
+def sort_subjects(user_id):
+    user_books = db.session.execute(
+        db.select(UserBook)
+        .where(UserBook.user_id == user_id, UserBook.is_recommended == False)
+        .options(db.joinedload(UserBook.book).joinedload(Book.subjects))
+    ).scalars().unique()
+    all_subjects = []
+    for user_book in user_books:
+        all_subjects.extend(user_book.book.subjects)
+    tally = {}
+    for subject in all_subjects:
+        if subject in tally:
+            tally[subject] += 1
+        else:
+            tally[subject] = 1
+    sorted_tally = sorted(tally.items(), key=lambda item: item[1], reverse=True)
+    not_recommended = [subject[0] for subject in sorted_tally if subject[1] > 3]
+    for subject in not_recommended:
+        subject.is_recommended = False
+    db.session.commit()
 
 
 def get_subjects(user_id):
@@ -52,13 +74,11 @@ def get_subjects(user_id):
 
 
 def get_recs(user):
-
     subjects = get_subjects(user)
 
     shelf = BookShelf()
 
     shelf.books_from_subjects(subjects)
-
 
     return shelf.recommendations
 
@@ -69,7 +89,7 @@ def get_books():
         return data
 
 
-def add_books(user_id, books,read):
+def add_books(user_id, books, read):
     user = User.query.get(user_id)
     if not user:
         print(f"User ID {user_id} not found.")
@@ -151,10 +171,13 @@ def login():
 def start_task():
     user = current_user.id
     app = current_app._get_current_object()
+
     def run_add_recs():
         with app.app_context():
+            sort_subjects(user)
             books = get_recs(user)
-            add_books(user, books,False)
+            add_books(user, books, False)
+
     thread = Thread(target=run_add_recs)
     thread.start()
     return render_template("loading.html")
@@ -169,7 +192,6 @@ def recommendations():
         UserBook.is_recommended == True
     )).scalars().all()
     return render_template("recommendations.html", result=books)
-
 
 
 @views.route("/account", methods=['GET', 'POST'])
@@ -187,16 +209,15 @@ def account():
 
         def run_add_recs():
             with app.app_context():
-
                 user_books = get_user_info(file_name, story_graph=story_graph, good_reads=good_reads)
                 print("Finished books")
-                add_books(user, user_books,True)
+                add_books(user, user_books, True)
                 print("books added")
 
         thread = Thread(target=run_add_recs)
         thread.start()
 
-    return render_template("account.html",form=form)
+    return render_template("account.html", form=form)
 
 
 @views.route("/watchlist")
@@ -210,9 +231,10 @@ def logout():
     logout_user()
     return redirect(url_for('views.home'))
 
+
 @views.route("/api/book_actions/<int:book_id>/<action>", methods=['GET', 'POST'])
 @login_required
-def book_actions(book_id,action):
+def book_actions(book_id, action):
     user_book = (
         db.session.query(UserBook)
         .filter_by(book_id=book_id, user_id=current_user.id)
