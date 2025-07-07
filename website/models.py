@@ -29,6 +29,7 @@ class User(UserMixin,db.Model):
     name:Mapped[str] = mapped_column(String(150), nullable=False)
     password:Mapped[str] = mapped_column(String(250), nullable=False)
 
+    user_subjects = relationship("UserSubject", back_populates="user", cascade="all, delete-orphan")
     user_books = relationship("UserBook", back_populates="user", cascade="all, delete-orphan")
 
 class Book(db.Model):
@@ -45,8 +46,15 @@ class Subject(db.Model):
     __tablename__ = "subjects"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(250), nullable=False)
+    books = relationship("Book", secondary=book_subjects, back_populates="subjects")
+    user_subjects = relationship("UserSubject", back_populates="subject", cascade="all, delete-orphan")
+
+class UserSubject(db.Model):
+    __tablename__ = "user_subjects"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id"))
     is_recommended: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    books = relationship("Book", secondary=book_subjects, back_populates="subjects")
-
-
+    user = relationship("User", back_populates="user_subjects")
+    subject = relationship("Subject", back_populates="user_subjects")

@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from book_shelf import BookShelf
 from user_info import UserInfo
 from .forms import LoginForm, RegisterForm, UploadForm
-from .models import User, db, Book, Subject, UserBook
+from .models import User, db, Book, Subject, UserBook,UserSubject
 
 views = Blueprint('views', __name__)
 thread_lock = Lock()
@@ -35,6 +35,31 @@ def get_user_info(filename, story_graph=False, good_reads=False):
     return shelf.owned_books
 
 
+def add_user_subjects(user_id):
+    user = db.session.execute(
+        db.select(User)
+        .where(User.id == user_id)
+    ).scalar()
+    print(f"{user.name}\n\n")
+    user_books = db.session.execute(
+        db.select(UserBook)
+        .where(UserBook.user_id == user_id)
+        .options(db.joinedload(UserBook.book).joinedload(Book.subjects))
+    ).scalars().unique()
+
+    for user_book in user_books:
+        subjects = user_book.book.subjects
+        for subject in subjects:
+            print(f"{subject.id}\n")
+            new_user_subject = UserSubject(
+                user_id=user_id,
+                subject_id=subject.id,
+                user=user,
+                subject=subject
+            )
+            db.session.add(new_user_subject)
+            db.session.commit()
+
 def sort_subjects(user_id):
     user_books = db.session.execute(
         db.select(UserBook)
@@ -53,23 +78,26 @@ def sort_subjects(user_id):
     sorted_tally = sorted(tally.items(), key=lambda item: item[1], reverse=True)
     not_recommended = [subject[0] for subject in sorted_tally if subject[1] > 3]
     for subject in not_recommended:
-        subject.is_recommended = False
+        user_subject = db.session.execute(
+            db.select(UserSubject)
+            .where(UserSubject.user_id == user_id, UserSubject.subject_id == subject.id)
+        ).scalar()
+        user_subject.is_recommended = False
     db.session.commit()
 
 
 def get_subjects(user_id):
-    user_books = db.session.execute(db.select(UserBook).where(
-        UserBook.user_id == user_id,
-        UserBook.is_read == True)).scalars().all()
-
+    subjects = db.session.execute(
+        db.select(UserSubject).where(
+            UserSubject.user_id == user_id,
+            UserSubject.is_recommended == True
+        )).scalars().all()
     user_subjects = set()
-
-    for user_book in user_books:
-        book = user_book.book
-        if book:
-            for subject in book.subjects:
+    for user_subject in subjects:
+        subject = user_subject.subject
+        if subject:
                 user_subjects.add(subject)
-
+    print(user_subjects)
     return list(user_subjects)
 
 
