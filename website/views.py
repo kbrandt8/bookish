@@ -1,7 +1,7 @@
 import json
 from threading import Thread, Lock
 
-from flask import Blueprint, render_template, redirect, url_for
+from flask import Blueprint, render_template, redirect, url_for,flash
 from flask import current_app
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,6 +10,7 @@ from book_shelf import BookShelf
 from user_info import UserInfo
 from .forms import LoginForm, RegisterForm, UploadForm
 from .models import User, db, Book, Subject, UserBook,UserSubject
+from .services.user_service import register_new_user, validate_login
 
 views = Blueprint('views', __name__)
 thread_lock = Lock()
@@ -22,9 +23,9 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-def get_user_info(filename, story_graph=False, good_reads=False):
+def get_user_info(user_id,filename, story_graph=False, good_reads=False):
     user = UserInfo()
-    shelf = BookShelf()
+    shelf = BookShelf(user_id)
     if story_graph:
         user.story_graph_csv(filename)
     if good_reads:
@@ -33,89 +34,6 @@ def get_user_info(filename, story_graph=False, good_reads=False):
     for book in books:
         shelf.book_info(book)
     return shelf.owned_books
-
-
-def add_user_subjects(user_id):
-    user = db.session.execute(
-        db.select(User)
-        .where(User.id == user_id)
-    ).scalar()
-    print(f"{user.name}\n\n")
-    user_books = db.session.execute(
-        db.select(UserBook)
-        .where(UserBook.user_id == user_id)
-        .options(db.joinedload(UserBook.book).joinedload(Book.subjects))
-    ).scalars().unique()
-
-    for user_book in user_books:
-        subjects = user_book.book.subjects
-        for subject in subjects:
-            print(f"{subject.id}\n")
-            new_user_subject = UserSubject(
-                user_id=user_id,
-                subject_id=subject.id,
-                user=user,
-                subject=subject
-            )
-            db.session.add(new_user_subject)
-            db.session.commit()
-
-def sort_subjects(user_id):
-    user_books = db.session.execute(
-        db.select(UserBook)
-        .where(UserBook.user_id == user_id, UserBook.is_recommended == False)
-        .options(db.joinedload(UserBook.book).joinedload(Book.subjects))
-    ).scalars().unique()
-    all_subjects = []
-    for user_book in user_books:
-        all_subjects.extend(user_book.book.subjects)
-    tally = {}
-    for subject in all_subjects:
-        if subject in tally:
-            tally[subject] += 1
-        else:
-            tally[subject] = 1
-    sorted_tally = sorted(tally.items(), key=lambda item: item[1], reverse=True)
-    not_recommended = [subject[0] for subject in sorted_tally if subject[1] > 3]
-    for subject in not_recommended:
-        user_subject = db.session.execute(
-            db.select(UserSubject)
-            .where(UserSubject.user_id == user_id, UserSubject.subject_id == subject.id)
-        ).scalar()
-        user_subject.is_recommended = False
-    db.session.commit()
-
-
-def get_subjects(user_id):
-    subjects = db.session.execute(
-        db.select(UserSubject).where(
-            UserSubject.user_id == user_id,
-            UserSubject.is_recommended == True
-        )).scalars().all()
-    user_subjects = set()
-    for user_subject in subjects:
-        subject = user_subject.subject
-        if subject:
-                user_subjects.add(subject)
-    print(user_subjects)
-    return list(user_subjects)
-
-
-def get_recs(user):
-    subjects = get_subjects(user)
-
-    shelf = BookShelf()
-
-    shelf.books_from_subjects(subjects)
-
-    return shelf.recommendations
-
-
-def get_books():
-    with open('recommendations.json', 'r') as f:
-        data = json.load(f)
-        return data
-
 
 def add_books(user_id, books, read):
     user = User.query.get(user_id)
@@ -167,16 +85,11 @@ def home():
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
-        name = form.name.data
-        email = form.email.data
-        password = generate_password_hash(form.password.data)
-        in_db = User.query.filter_by(email=email).first()
-        if not in_db:
-            new_user = User(email=email, name=name, password=password)
-            db.session.add(new_user)
-            db.session.commit()
+        success = register_new_user(form)
+        if success:
             return redirect(url_for('views.login'))
-
+        else:
+            flash("Email already exists")
     return render_template("register.html", form=form)
 
 
@@ -184,12 +97,12 @@ def register():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        email = form.email.data
-        user = User.query.filter_by(email=email).first()
-        check_password = check_password_hash(user.password, form.password.data)
-        if check_password:
+        user = validate_login(form.email.data.lower(),form.password.data)
+        if user:
             login_user(user)
             return redirect(url_for('views.account'))
+        else:
+            flash("Please check credentials!")
 
     return render_template("login.html", form=form)
 
@@ -202,9 +115,8 @@ def start_task():
 
     def run_add_recs():
         with app.app_context():
-            sort_subjects(user)
-            books = get_recs(user)
-            add_books(user, books, False)
+            shelf = BookShelf(user)
+            shelf.books_from_subjects()
 
     thread = Thread(target=run_add_recs)
     thread.start()
@@ -237,7 +149,7 @@ def account():
 
         def run_add_recs():
             with app.app_context():
-                user_books = get_user_info(file_name, story_graph=story_graph, good_reads=good_reads)
+                user_books = get_user_info(user,file_name, story_graph=story_graph, good_reads=good_reads)
                 print("Finished books")
                 add_books(user, user_books, True)
                 print("books added")

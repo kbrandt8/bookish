@@ -2,29 +2,120 @@ import difflib
 
 import requests
 
-from rapidfuzz import fuzz
+from website.models import db, UserSubject, UserBook, Book, Subject, User
+
 
 class BookShelf:
-    def __init__(self):
-        self.bookshelf = []
-        self.isbn_list = []
+    def __init__(self, user_id):
+        self.user_id = user_id
+        self.user = User.query.get(self.user_id)
         self.recommendations = []
-        self.recommendations_isbn = []
-        self.edition_keys = []
-        self.keys = []
-        self.owned_books = []
         self.subjects = []
 
+    def sort_subjects(self):
+        user_books = db.session.execute(
+            db.select(UserBook)
+            .where(UserBook.user_id == self.user_id, UserBook.is_recommended == False)
+            .options(db.joinedload(UserBook.book).joinedload(Book.subjects))
+        ).scalars().unique()
+        all_subjects = []
+        for user_book in user_books:
+            all_subjects.extend(user_book.book.subjects)
+        tally = {}
+        for subject in all_subjects:
+            if subject in tally:
+                tally[subject] += 1
+            else:
+                tally[subject] = 1
+        sorted_tally = sorted(tally.items(), key=lambda item: item[1], reverse=True)
+        not_recommended = [subject[0] for subject in sorted_tally if subject[1] > 3]
+        for subject in not_recommended:
+            user_subject = db.session.execute(
+                db.select(UserSubject)
+                .where(UserSubject.user_id == self.user_id, UserSubject.subject_id == subject.id)
+            ).scalar()
+            user_subject.is_recommended = False
+        db.session.commit()
 
-    def books_from_subjects(self, subjects):
-        self.subjects = [subject.name for subject in subjects]
-        self.set_subjects()
-        print(self.subjects)
+    def get_subjects(self):
+        self.sort_subjects()
+
+        user_subjects = db.session.execute(
+            db.select(UserSubject)
+            .where(
+                UserSubject.user_id == self.user_id,
+                UserSubject.is_recommended == True
+            )
+            .options(db.joinedload(UserSubject.subject))
+        ).scalars().all()
+
+        subject_counts = {}
+        for us in user_subjects:
+            name = us.subject.name if us.subject else None
+            if name:
+                subject_counts[name] = subject_counts.get(name, 0) + 1
+
+        sorted_subjects = sorted(subject_counts.items(), key=lambda item: item[1], reverse=True)
+        top_subjects = [subject for subject, count in sorted_subjects[:20]]
+        self.subjects = top_subjects
+        return top_subjects
+
+    def add_books(self):
+        user = self.user
+        if not user:
+            print(f"User ID {self.user_id} not found.")
+            return
+
+        for book_data in self.recommendations:
+            print(f"{book_data['Title']}")
+            title = book_data['Title']
+            author = book_data['Author']
+            link = f"https://openlibrary.org{book_data['Key']}"
+            subjects = book_data.get('Subjects', [])
+
+            book = Book.query.filter_by(title=title, author=author).first()
+            if not book:
+                book = Book(title=title, author=author, link=link)
+                db.session.add(book)
+                db.session.flush()
+
+            for subject_name in subjects:
+                if not subject_name:
+                    continue
+                subject = Subject.query.filter_by(name=subject_name).first()
+                if not subject:
+                    print(f" adding subject: {subject_name}")
+                    subject = Subject(name=subject_name)
+                    db.session.add(subject)
+                    db.session.flush()
+                if subject not in book.subjects:
+                    book.subjects.append(subject)
+                user_subject = UserSubject.query.filter_by(
+                user_id = self.user_id, subject_id = subject.id
+                ).first()
+                if not user_subject:
+                    db.session.add(UserSubject(
+                        user_id=self.user_id,
+                        subject_id = subject.id
+                    ))
+
+            existing_userbook = UserBook.query.filter_by(user_id=user.id, book_id=book.id).first()
+            if not existing_userbook:
+                db.session.add(UserBook(user_id=user.id, book_id=book.id, is_read=False))
+
+        db.session.commit()
+
+    def books_from_subjects(self):
+        print("Getting subjects...")
+        self.get_subjects()
+        print(f"Searching Subjects...\n")
         for subject in self.subjects:
             self.search_subject(subject)
-        print("finished searching!")
-
-        self.set_recs()
+        print(f"Sorting recommendations...")
+        self.sort_books()
+        print(f"Saving to database... \n")
+        self.add_books()
+        print("Enjoy your new recs!")
 
     def book_info(self, book):
         url = f"https://openlibrary.org/search.json?title={book['Title']}&author={book['Author']}&fields=edition_key,title,subject,isbn,author_name,key"
@@ -33,9 +124,12 @@ class BookShelf:
         found_books = []
         for search_book in result['docs']:
             if book['Title'] in search_book['title'] and book['Author'] in search_book['author_name']:
+                authors = search_book.get("author_name", [])
+                author = authors[0] if authors else "Unknown"
+                print(search_book.get("title", []))
                 book_object = {
                     "Title": search_book.get("title", []),
-                    "Author": search_book.get("author_name", [])[0],
+                    "Author": author,
                     "Key": search_book.get("key", []),
                     "Subjects": search_book.get("subject", [])
                 }
@@ -51,29 +145,8 @@ class BookShelf:
                 match = titles.index(closest_title[0])
                 self.owned_books.append(found_books[match])
 
-
-    def set_subjects(self):
-        to_delete = ["Romans, nouvelles", "Fiction", "Large type books", "General",
-                     "Novela"]
-        subject_tally = dict((i, self.subjects.count(i)) for i in self.subjects)
-        all_subjects = sorted(subject_tally.items(), key=lambda item: item[1], reverse=True)
-        new_subjects = [subject for subject, tally in all_subjects if subject not in to_delete]
-        if len(new_subjects) > 20:
-            clusters = []
-            for subject in new_subjects:
-                placed = False
-                for cluster in clusters:
-                    if fuzz.partial_ratio(subject, cluster) >= 85:
-                        placed = True
-                        break
-                if not placed:
-                    clusters.append(subject)
-            self.subjects = clusters[:15]
-        else:
-            self.subjects = new_subjects[:15]
-
     def search_subject(self, subject):
-        print(subject)
+        print(f"Searching: {subject}\n")
         url = (f"https://openlibrary.org/search.json?subject={subject}&fields="
                f"title,subject,isbn,key,edition_key,author_name,"
                f"id_project_gutenberg,id_openstax,id_librivox,lending_edition_s")
@@ -83,40 +156,27 @@ class BookShelf:
             books = search_json['docs']
             for book in books:
                 if "subject" in book:
-                    all_subjects = [subject for subject in book['subject']]
-                    shared_subjects = [subject for subject in all_subjects if subject in self.subjects]
-                    if len(book.get('author_name',[])) > 0:
-                        edited_book = {
-                            'Title': book.get("title",[]),
-                            'Author': book.get('author_name', [])[0],
-                            'Key': book.get("key",[]),
-                            'gutenberg_url': book.get("id_project_gutenberg", []),
-                            'standard_ebook': book.get("id_standard_ebooks", []),
-                            'librivox': book.get("id_librivox", []),
-                            'openstax': book.get("id_open_stax", []),
-                            'edition_key': book.get('edition_key', ''),
-                            'lending': book.get('lending_edition_s', ''),
-                            'Subjects': book.get('subject', ''),
-                            'shared_subjects': shared_subjects}
+                    authors = book.get('author_name', [])
+                    author = authors[0] if authors else "unknown"
+                    edited_book = {
+                        'Title': book.get("title", []),
+                        'Author': author,
+                        'Key': book.get("key", []),
+                        'Subjects': book.get('subject', ''),
+                    }
+                    if edited_book not in self.recommendations:
                         self.recommendations.append(edited_book)
 
-    def check_if_owned(self, book):
-        isbn = any(element in book['isbn'] for element in self.isbn_list)
-        edition_key = any(element in book['edition_key'] for element in self.edition_keys)
-        key = True if book['Key'] in self.keys else False
-        title = True if book['Title'] in self.owned_books else False
-        if not isbn and not key and not edition_key and not title:
-            return False
-        else:
-            return True
-
-    def set_recs(self):
-        new_recommendations = []
+    def sort_books(self):
+        book_list = []
         for book in self.recommendations:
-            if not self.check_if_owned(book):
-                if book not in new_recommendations:
-                    new_recommendations.append(book)
-        for item in new_recommendations:
-            item.pop('isbn', None)
-            item.pop('edition_key', None)
-        self.recommendations = sorted(new_recommendations, reverse=True, key=lambda d: len(d['shared_subjects']))[:10]
+            user_book = Book.query.filter_by(title=book['Title'], author=book['Author']).first()
+            if user_book:
+                continue
+            else:
+                shared_subjects = [ subject for subject in book['Subjects'] if subject in self.subjects]
+                book['shared_subjects'] = shared_subjects
+                book_list.append(book)
+        self.recommendations = sorted(book_list, key= lambda d:len(d['shared_subjects']), reverse=True)[:15]
+        for book in self.recommendations:
+            print(book['Title'])
