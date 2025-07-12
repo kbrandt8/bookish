@@ -1,74 +1,18 @@
-import json
 from threading import Thread, Lock
 
-from flask import Blueprint, render_template, redirect, url_for,flash
+from flask import Blueprint, render_template, redirect, url_for, flash
 from flask import current_app
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
-from werkzeug.security import generate_password_hash, check_password_hash
 
 from book_shelf import BookShelf
-from user_info import UserInfo
 from .forms import LoginForm, RegisterForm, UploadForm
-from .models import User, db, Book, Subject, UserBook,UserSubject
-from .services.user_service import register_new_user, validate_login
+from .models import User, db, UserBook
+from .services.user_service import register_new_user, validate_login, add_user_books
 
 views = Blueprint('views', __name__)
 thread_lock = Lock()
 RESULTS = []
 login_manager = LoginManager()
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-
-def get_user_info(user_id,filename, story_graph=False, good_reads=False):
-    user = UserInfo()
-    shelf = BookShelf(user_id)
-    if story_graph:
-        user.story_graph_csv(filename)
-    if good_reads:
-        user.good_reads_csv(filename)
-    books = user.all_books
-    for book in books:
-        shelf.book_info(book)
-    return shelf.owned_books
-
-def add_books(user_id, books, read):
-    user = User.query.get(user_id)
-    if not user:
-        print(f"User ID {user_id} not found.")
-        return
-
-    for book_data in books:
-        title = book_data['Title']
-        author = book_data['Author']
-        link = f"https://openlibrary.org{book_data['Key']}"
-        shared_subjects = book_data.get('Subjects', [])
-
-        book = Book.query.filter_by(title=title, author=author).first()
-        if not book:
-            book = Book(title=title, author=author, link=link)
-            db.session.add(book)
-
-        for subject_name in shared_subjects:
-            subject = Subject.query.filter_by(name=subject_name).first()
-            if not subject:
-                subject = Subject(name=subject_name)
-                db.session.add(subject)
-                db.session.flush()
-            if subject not in book.subjects:
-                book.subjects.append(subject)
-
-        db.session.flush()
-
-        existing_userbook = UserBook.query.filter_by(user_id=user.id, book_id=book.id).first()
-        if not existing_userbook:
-            user_book = UserBook(user_id=user.id, book_id=book.id, is_read=read)
-            db.session.add(user_book)
-
-    db.session.commit()
 
 
 @login_manager.user_loader
@@ -97,7 +41,7 @@ def register():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        user = validate_login(form.email.data.lower(),form.password.data)
+        user = validate_login(form.email.data.lower(), form.password.data)
         if user:
             login_user(user)
             return redirect(url_for('views.account'))
@@ -139,23 +83,15 @@ def recommendations():
 def account():
     form = UploadForm()
     if form.validate_on_submit():
-        file = form.file.data
-        file_name = "user_data.csv"
-        file.save(file_name)
-        story_graph = True if form.data_type.data == "sg" else False
-        good_reads = True if form.data_type.data == "gr" else False
         user = current_user.id
         app = current_app._get_current_object()
 
         def run_add_recs():
             with app.app_context():
-                user_books = get_user_info(user,file_name, story_graph=story_graph, good_reads=good_reads)
-                print("Finished books")
-                add_books(user, user_books, True)
-                print("books added")
+                add_user_books(user,form)
 
-        thread = Thread(target=run_add_recs)
-        thread.start()
+        Thread(target=run_add_recs).start()
+
 
     return render_template("account.html", form=form)
 
