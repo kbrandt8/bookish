@@ -2,22 +2,29 @@
 <html lang="en">
 <head>
     {% block head %}
-        <meta charset="utf-8"/>
-        <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
-        <meta name="description" content=""/>
-        <meta name="author" content=""/>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <meta name="description" content=""/>
+    <meta name="author" content=""/>
 
-        <link href="../static/css/styles.css" rel="stylesheet"/>
-        <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
-        {% block styles %}
-        {{ bootstrap.load_css() }}
-        {% endblock %}
-        <title>{% block title %} {% endblock %}</title>
-        {% endblock %}
+    <link href="../static/css/styles.css" rel="stylesheet"/>
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    {% block styles %}
+    {{ bootstrap.load_css() }}
+    {% endblock %}
+    <title>{% block title %} {% endblock %}</title>
+    {% endblock %}
 </head>
 <body>
 {% include "header.html" %}
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+{% for message in messages %}
+<h5>{{message}}</h5>
+{% endfor %}
+{% endif %}
+{% endwith %}
 <!-- Your page content -->
 {% block content %}{% endblock %}
 

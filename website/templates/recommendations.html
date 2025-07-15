@@ -17,10 +17,10 @@
     <tr>
       <td>{{item.book.title}}</td>
       <td>{{item.book.author}}</td>
-      <td><a class="btn btn-outline-secondary" href={{item.book.link}}> 🔗 </a> </td>
-      <td><a class="btn btn-outline-secondary" href="{{url_for('views.book_actions',book_id=item.book.id,action='delete')}}"> ✘ </a> </td>
-      <td><a class="btn btn-outline-secondary" href="{{url_for('views.book_actions', book_id=item.book.id,action='is_read')}}"> ✔ </a> </td>
-      <td><a class="btn btn-outline-secondary" href="{{url_for('views.book_actions', book_id=item.book.id,action='not_recommended')}}"> 💔 </a> </td>
+      <td><a class="btn btn-sm" href={{item.book.link}}> 🔗 </a> </td>
+      <td><a class="btn btn-sm" href="{{url_for('views.book_actions',book_id=item.book.id,action='delete')}}"> ✘ </a> </td>
+      <td><a class="btn btn-sm" href="{{url_for('views.book_actions', book_id=item.book.id,action='is_read')}}"> ✔ </a> </td>
+      <td><a class="btn btn-sm" href="{{url_for('views.book_actions', book_id=item.book.id,action='not_recommended')}}"> 💔 </a> </td>
 
     </tr>
 

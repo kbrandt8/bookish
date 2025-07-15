@@ -3,21 +3,28 @@ from threading import Thread, Lock
 from flask import Blueprint, render_template, redirect, url_for, flash
 from flask import current_app
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
-
+from flask import after_this_request
 from book_shelf import BookShelf
 from .forms import LoginForm, RegisterForm, UploadForm
 from .models import User, db, UserBook
 from .services.user_service import register_new_user, validate_login, add_user_books
 
 views = Blueprint('views', __name__)
-thread_lock = Lock()
-RESULTS = []
 login_manager = LoginManager()
+
+
+def run_in_thread(func):
+    app = current_app._get_current_object()
+    def wrapped():
+        with app.app_context():
+            func()
+    Thread(target=wrapped).start()
+
 
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.get(user_id)
+    return db.session.get(User, user_id)
 
 
 @views.route("/")
@@ -55,26 +62,22 @@ def login():
 @login_required
 def start_task():
     user = current_user.id
-    app = current_app._get_current_object()
-
-    def run_add_recs():
-        with app.app_context():
-            shelf = BookShelf(user)
-            shelf.books_from_subjects()
-
-    thread = Thread(target=run_add_recs)
-    thread.start()
+    run_in_thread(lambda: BookShelf(user).books_from_subjects())
     return render_template("loading.html")
 
 
 @views.route("/recommendations")
 @login_required
 def recommendations():
-    books = db.session.execute(db.select(UserBook).where(
+    books = db.session.execute(
+        db.select(UserBook)
+    .where(
         UserBook.user_id == current_user.id,
         UserBook.is_read == False,
         UserBook.is_recommended == True
-    )).scalars().all()
+    )
+        .options(db.joinedload(UserBook.book))
+    ).scalars().all()
     return render_template("recommendations.html", result=books)
 
 
@@ -84,15 +87,8 @@ def account():
     form = UploadForm()
     if form.validate_on_submit():
         user = current_user.id
-        app = current_app._get_current_object()
-
-        def run_add_recs():
-            with app.app_context():
-                add_user_books(user,form)
-
-        Thread(target=run_add_recs).start()
-
-
+        run_in_thread(lambda:add_user_books(user,form))
+        flash("Books are being processed...")
     return render_template("account.html", form=form)
 
 
@@ -108,7 +104,7 @@ def logout():
     return redirect(url_for('views.home'))
 
 
-@views.route("/api/book_actions/<int:book_id>/<action>", methods=['GET', 'POST'])
+@views.route("/api/book_actions/<int:book_id>/<action>", methods=['POST', 'GET'])
 @login_required
 def book_actions(book_id, action):
     user_book = (
@@ -117,20 +113,21 @@ def book_actions(book_id, action):
         .first()
     )
     if not user_book:
+        flash("You can't modify this book.")
         return redirect(url_for("views.recommendations"))
-
-    if action == "delete":
-        db.session.delete(user_book)
-    elif action == "is_read":
-        user_book.is_read = True
-    elif action == "is_not_read":
-        user_book.is_read = False
-    elif action == "not_recommended":
-        user_book.is_recommended = False
-    elif action == "recommended":
-        user_book.is_recommended = True
+    action_map = {
+        "delete":lambda b: db.session.delete(b),
+        "is_read":lambda b: setattr(b, "is_read",True),
+        "is_not_read": lambda b: setattr(b, "is_read", False),
+        "not_recommended" : lambda b: setattr(b, "is_recommended", False),
+        "recommended": lambda b:setattr(b,"is_recommended", True),
+    }
+    handler = action_map.get(action)
+    if handler:
+        handler(user_book)
+        db.session.commit()
     else:
-        return redirect(url_for("views.recommendations"))
+        flash("Invalid action.")
 
-    db.session.commit()
+
     return redirect(url_for("views.recommendations"))
