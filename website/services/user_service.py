@@ -31,15 +31,7 @@ def get_user_info(form):
     file = form.file.data
     file.save(file_name)
     user = UserInfo()
-    story_graph = True if data_type == "sg" else False
-    good_reads = True if data_type == "gr" else False
-    print(f"Good Reads:{good_reads}\n Story Graph: {story_graph}")
-    if story_graph:
-        user.story_graph_csv(file_name)
-    if good_reads:
-        user.good_reads_csv(file_name)
-
-    print(user.all_books[0])
+    user.load_csv(file_name, source=data_type)
     return user.all_books
 
 
