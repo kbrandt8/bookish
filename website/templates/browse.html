@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+<form method="GET" action="{{ url_for('views.browse') }}">
+    <div class="input-group mb-3 container-sm text-center" style="margin:1rem;">
+        <input type="text" name="q" class="form-control" placeholder="Search OpenLibrary..." value="{{ query }}">
+        <button type="submit" class="btn btn-primary" id="button-addon2">Search</button>
+    </div>
+</form>
+
+{% if books %}
+<div class="row row-cols-1 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-4">
+    {% for book in books %}
+    <div class="col">
+
+        <div class="card h-100 d-flex flex-column" style="width: 100%;">
+            <img src="https://covers.openlibrary.org/b/olid/{{book.Edition}}-M.jpg" class="card-img-top"
+                 alt="{{book.Title}} -- {{book.Author}}">
+            <div class="card-body d-flex flex-column">
+                <div class="mt-auto text-center">
+                    <h5 class="card-title">{{book.Title}} - {{book.Author}}</h5>
+
+
+                    <a href="https://openlibrary.org/books/{{book.Edition}}" class="btn btn-primary">Visit on
+                        OpenLibrary</a>
+                    {% if current_user.is_authenticated %}
+                    <div class="btn-group  mt-2" role="group">
+                        <form method="POST" action="{{ url_for('views.add_openlibrary_book') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="title" value="{{ book.Title }}">
+                            <input type="hidden" name="author" value="{{ book.Author }}">
+                            <input type="hidden" name="key" value="{{ book.Key }}">
+                            <input type="hidden" name="is_read" value=False>
+                            <input type="hidden" name="is_recommended" value=True>
+
+
+                            {% for subject in book.Subjects %}
+                            <input type="hidden" name="subjects" value="{{ subject }}">
+                            {% endfor %}
+                            <button type="submit" class="btn btn-lg btn-outline-primary">➕ Watchlist</button>
+                        </form>
+
+                        <button type="button"
+                                class="btn  btn-lg btn-outline-primary dropdown-toggle dropdown-toggle-split"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="visually-hidden">More options</span>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-end w-100 ">
+                            <li>
+                                <form method="POST" action="{{ url_for('views.add_openlibrary_book') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="title" value="{{ book.Title }}">
+                                    <input type="hidden" name="author" value="{{ book.Author }}">
+                                    <input type="hidden" name="is_recommended" value=True>
+                                    <input type="hidden" name="key" value="{{ book.Key }}">
+                                    <input type="hidden" name="is_read" value=True>
+                                    {% for subject in book.Subjects %}
+                                    <input type="hidden" name="subjects" value="{{ subject }}">
+                                    {% endfor %}
+                                    <button type="submit" class="dropdown-item">✔ Mark as Read</button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="POST" action="{{ url_for('views.add_openlibrary_book') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="title" value="{{ book.Title }}">
+                                    <input type="hidden" name="author" value="{{ book.Author }}">
+                                    <input type="hidden" name="key" value="{{ book.Key }}">
+                                    <input type="hidden" name="is_recommended" value=False>
+                                    <input type="hidden" name="is_read" value=True>
+
+                                    {% for subject in book.Subjects %}
+                                    <input type="hidden" name="subjects" value="{{ subject }}">
+                                    {% endfor %}
+                                    <button type="submit" class="dropdown-item text-danger">💔 See Fewer</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+                {%endif%}
+            </div>
+        </div>
+
+
+    </div>
+
+    {% endfor %}
+</div>
+
+</div>
+{% endif %}
+{% endblock %}

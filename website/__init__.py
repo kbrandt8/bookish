@@ -2,8 +2,9 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask
+from flask_wtf.csrf import CSRFProtect
 from flask_bootstrap import Bootstrap5
-from flask_wtf import FlaskForm, CSRFProtect
+from flask_wtf import FlaskForm
 from flask_cors import CORS
 from flask_login import LoginManager
 from sqlalchemy.orm import DeclarativeBase
@@ -22,11 +23,10 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLDB")
     app.secret_key = os.getenv('SECRET_KEY')
-    csrf = CSRFProtect(app)
 
     db.init_app(app)
     CORS(app)
-
+    csrf = CSRFProtect(app)
     login_manager = LoginManager()
     login_manager.init_app(app)
 

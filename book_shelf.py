@@ -3,20 +3,31 @@ from typing import List, Dict
 
 import requests
 
-from website.models import db, UserSubject, UserBook, Book, Subject, User
+from website.models import db, UserSubject, UserBook, Book, Subject
 
 
 class BookShelf:
-    def __init__(self, user_id):
-        self.user_id = user_id
-        self.user = db.session.get(User, self.user_id)
+    def __init__(self):
         self.recommendations: List[Dict] = []
         self.subjects: List[str] = []
 
-    def sort_subjects(self):
+    def books_from_subjects(self, user_id):
+        print("Getting subjects...")
+        self.sort_subjects(user_id)
+        self.get_subjects(user_id)
+        print(f"Searching Subjects...\n")
+        for subject in self.subjects:
+            self.search_subject(subject)
+        print(f"Sorting recommendations...")
+        self.sort_books()
+        print(f"Saving to database... \n")
+        self.add_books(user_id)
+        print("Enjoy your new recs!")
+
+    def sort_subjects(self, user_id):
         user_books = db.session.execute(
             db.select(UserBook)
-            .where(UserBook.user_id == self.user_id, UserBook.is_recommended == False)
+            .where(UserBook.user_id == user_id, UserBook.is_recommended == False)
             .options(db.joinedload(UserBook.book).joinedload(Book.subjects))
         ).scalars().unique()
         subject_counts = {}
@@ -27,26 +38,25 @@ class BookShelf:
         for subject in least_fav_subjects:
             user_subject = db.session.execute(
                 db.select(UserSubject)
-                .where(UserSubject.user_id == self.user_id, UserSubject.subject_id == subject.id)
+                .where(UserSubject.user_id == user_id, UserSubject.subject_id == subject.id)
             ).scalar()
 
             if user_subject:
                 user_subject.is_recommended = False
             else:
                 db.session.add(UserSubject(
-                    user_id=self.user_id,
+                    user_id=user_id,
                     subject_id=subject.id,
                     is_recommended=False
                 ))
             db.session.commit()
 
-    def get_subjects(self):
-        self.sort_subjects()
+    def get_subjects(self, user_id):
 
         user_subjects = db.session.execute(
             db.select(UserSubject)
             .where(
-                UserSubject.user_id == self.user_id,
+                UserSubject.user_id == user_id,
                 UserSubject.is_recommended == True
             )
             .options(db.joinedload(UserSubject.subject))
@@ -63,7 +73,7 @@ class BookShelf:
         self.subjects = top_subjects
         return top_subjects
 
-    def add_books(self, is_read=False, owned_books=None):
+    def add_books(self, user_id, is_read=False, owned_books=None):
         books = owned_books if owned_books is not None else self.recommendations
 
         for book_data in books:
@@ -77,7 +87,7 @@ class BookShelf:
                 if len(s) > 250:
                     print(f"{s}: {len(s)}")
                     parts = [part.strip() for part in s.split(",") if len(part.strip()) < 250]
-                    subjects+= parts
+                    subjects += parts
                 else:
                     subjects.append(s)
             book = Book.query.filter_by(title=title, author=author).first()
@@ -101,30 +111,18 @@ class BookShelf:
                     book.subjects.append(subject)
 
                 user_subject = UserSubject.query.filter_by(
-                    user_id=self.user_id, subject_id=subject.id
+                    user_id=user_id, subject_id=subject.id
                 ).first()
                 if not user_subject:
                     db.session.add(UserSubject(
-                        user_id=self.user_id,
+                        user_id=user_id,
                         subject_id=subject.id
                     ))
-            existing_userbook = UserBook.query.filter_by(user_id=self.user_id, book_id=book.id).first()
+            existing_userbook = UserBook.query.filter_by(user_id=user_id, book_id=book.id).first()
             if not existing_userbook:
-                db.session.add(UserBook(user_id=self.user_id, book_id=book.id, is_read=is_read))
+                db.session.add(UserBook(user_id=user_id, book_id=book.id, is_read=is_read))
 
         db.session.commit()
-
-    def books_from_subjects(self):
-        print("Getting subjects...")
-        self.get_subjects()
-        print(f"Searching Subjects...\n")
-        for subject in self.subjects:
-            self.search_subject(subject)
-        print(f"Sorting recommendations...")
-        self.sort_books()
-        print(f"Saving to database... \n")
-        self.add_books()
-        print("Enjoy your new recs!")
 
     def book_info(self, book):
         url = (f"https://openlibrary.org/search.json?"
@@ -142,7 +140,7 @@ class BookShelf:
                 "Title": search_book.get("title", ""),
                 "Author": search_book.get("author_name", ["Unknown"])[0],
                 "Key": search_book.get("key", []),
-                "Subjects":search_book.get("subject",[])
+                "Subjects": search_book.get("subject", [])
 
             }
             for search_book in result.get("docs", [])
@@ -177,6 +175,7 @@ class BookShelf:
                 'Author': book.get('author_name', ['Unknown'])[0],
                 'Key': book.get("key", []),
                 'Subjects': book.get('subject', []),
+                'Edition': book.get("edition_key", [''])[0]
             }
             if edited_book not in self.recommendations:
                 self.recommendations.append(edited_book)
@@ -188,15 +187,75 @@ class BookShelf:
             identifier = (book["Title"].lower(), book["Author"].lower())
             if identifier in seen:
                 continue
-            shared = [s for s in book.get("Subjects",[]) if s in self.subjects]
+            shared = [s for s in book.get("Subjects", []) if s in self.subjects]
             if not shared:
                 continue
-            book["shared_subjects"]=shared
+            book["shared_subjects"] = shared
             user_book = Book.query.filter_by(title=book['Title'], author=book['Author']).first()
             if user_book:
                 continue
             book_list.append(book)
             seen.add(identifier)
-            self.recommendations = sorted(book_list, key=lambda b: len(b["shared_subjects"]),reverse=True)[:15]
+            self.recommendations = sorted(book_list, key=lambda b: len(b["shared_subjects"]), reverse=True)[:15]
         for book in self.recommendations:
             print(book['Title'])
+
+    def add_open_library_book(self, user_id, form):
+        title = form.get("title")
+        author = form.get("author")
+        key = form.get("key")
+        subjects = form.getlist("subjects")
+        is_read = True if form.get("is_read") == "True" else False
+        is_recommended = True if form.get("is_recommended") == "True" else False
+
+        book = Book.query.filter_by(title=title, author=author).first()
+        if not book:
+            book = Book(title=title, author=author, link=f"https://openlibrary.org{key}")
+            db.session.add(book)
+            db.session.flush()
+
+        for subject_name in subjects:
+            if not subject_name:
+                continue
+            subject = Subject.query.filter_by(name=subject_name).first()
+            if not subject:
+                subject = Subject(name=subject_name)
+                db.session.add(subject)
+                db.session.flush()
+            if subject not in book.subjects:
+                book.subjects.append(subject)
+
+            if not UserSubject.query.filter_by(user_id=user_id, subject_id=subject.id).first():
+                db.session.add(
+                    UserSubject(user_id=user_id, subject_id=subject.id, is_recommended=is_recommended))
+
+        if not UserBook.query.filter_by(user_id=user_id, book_id=book.id).first():
+            db.session.add(
+                UserBook(user_id=user_id, book_id=book.id, is_read=is_read, is_recommended=is_recommended))
+
+        db.session.commit()
+
+    def search_openlibrary_books(self,query: str, limit=20):
+        query = query.strip()
+        if not query:
+            return []
+
+        url = f"https://openlibrary.org/search.json?q={query}&fields=title,author_name,key,subject,edition_key"
+        try:
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                docs = resp.json().get("docs", [])
+                return [
+                    {
+                        "Title": doc.get("title", ""),
+                        "Author": doc.get("author_name", ["Unknown"])[0],
+                        "Key": doc.get("key", ""),
+                        "Subjects": doc.get("subject", []),
+                        "Edition": doc.get("edition_key", [""])[0]
+                    }
+                    for doc in docs[:limit]
+                ]
+        except requests.RequestException as e:
+            raise RuntimeError(f"OpenLibrary API failed: {e}")
+
+        return []

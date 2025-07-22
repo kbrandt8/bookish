@@ -26,8 +26,9 @@
 {% endif %}
 {% endwith %}
 <!-- Your page content -->
+<div class="container-fluid">
 {% block content %}{% endblock %}
-
+</div>
 {% block scripts %}
 <!-- Optional JavaScript -->
 {{ bootstrap.load_js() }}

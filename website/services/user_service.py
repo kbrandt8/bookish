@@ -37,11 +37,13 @@ def get_user_info(form):
 
 def add_user_books(user_id, form):
     books = get_user_info(form)
-    shelf = BookShelf(user_id)
+    shelf = BookShelf()
     owned_books = []
     for book in books:
             new_book_info = shelf.book_info(book)
             if new_book_info is not None:
                 print(new_book_info)
                 owned_books.append(new_book_info)
-    shelf.add_books(is_read=True, owned_books=owned_books)
+    shelf.add_books(user_id,is_read=True, owned_books=owned_books)
+
+

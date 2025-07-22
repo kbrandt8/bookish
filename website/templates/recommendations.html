@@ -1,31 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
 <table class="table">
-  <thead>
+    <thead>
     <tr>
-      <th scope="col">Title</th>
-      <th scope="col">Author</th>
-      <th scope="col">link</th>
-      <th scope="col">Delete</th>
-      <th scope="col">I've read this book</th>
-      <th scope="col">Not interested</th>
+        <th scope="col">Title</th>
+        <th scope="col">Author</th>
+        <th scope="col">link</th>
+        <th scope="col">Delete</th>
+        <th scope="col">I've read this book</th>
+        <th scope="col">Not interested</th>
     </tr>
-  </thead>
-  <tbody>
-  {% if result %}
-  {% for item in result %}
+    </thead>
+    <tbody>
+    {% if result %}
+    {% for item in result %}
     <tr>
-      <td>{{item.book.title}}</td>
-      <td>{{item.book.author}}</td>
-      <td><a class="btn btn-sm" href={{item.book.link}}> 🔗 </a> </td>
-      <td><a class="btn btn-sm" href="{{url_for('views.book_actions',book_id=item.book.id,action='delete')}}"> ✘ </a> </td>
-      <td><a class="btn btn-sm" href="{{url_for('views.book_actions', book_id=item.book.id,action='is_read')}}"> ✔ </a> </td>
-      <td><a class="btn btn-sm" href="{{url_for('views.book_actions', book_id=item.book.id,action='not_recommended')}}"> 💔 </a> </td>
-
+        <td>{{item.book.title}}</td>
+        <td>{{item.book.author}}</td>
+        <td><a class="btn btn-sm" href={{item.book.link}}> 🔗 </a></td>
+        <td>
+            <form method="POST" action="{{url_for('views.book_actions') }}">
+                <input type="hidden" name="book_id" value={{item.book.id}}>
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-sm" type="submit"> ✘</button>
+            </form>
+        </td>
+        <td>
+            <form method="POST" action="{{url_for('views.book_actions') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="book_id" value={{item.book.id}}>
+                <input type="hidden" name="action" value="is_read">
+                <button type="submit" class="btn btn-sm">✔</button>
+            </form>
+        </td>
+        <td>
+            <form method="POST" action="{{url_for('views.book_actions') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="book_id" value="{{item.book.id}}">
+                <input type="hidden" name="action" value="not_recommended">
+                <button type="submit" class="btn btn-sm">💔</button>
+            </form>
     </tr>
 
-  {% endfor %}
-  {% endif %}
-  </tbody>
+    {% endfor %}
+    {% endif %}
+    </tbody>
 </table>
 {% endblock %}

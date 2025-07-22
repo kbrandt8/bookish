@@ -1,12 +1,13 @@
 from threading import Thread, Lock
-
+import requests
+from flask_wtf.csrf import generate_csrf
 from flask import Blueprint, render_template, redirect, url_for, flash
 from flask import current_app
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from flask import after_this_request
 from book_shelf import BookShelf
 from .forms import LoginForm, RegisterForm, UploadForm
-from .models import User, db, UserBook
+from .models import User, db, UserBook, Book, Subject, UserSubject
 from .services.user_service import register_new_user, validate_login, add_user_books
 
 views = Blueprint('views', __name__)
@@ -30,6 +31,49 @@ def load_user(user_id):
 @views.route("/")
 def home():
     return render_template("index.html")
+
+@views.route("/browse", methods=["GET"])
+def browse():
+    query = request.args.get("q", "").strip()
+    books = []
+    csrf_token = generate_csrf()
+    shelf=BookShelf()
+
+    if query:
+        try:
+            books = shelf.search_openlibrary_books(query)
+        except RuntimeError as e:
+            flash(str(e))
+
+    return render_template("browse.html", books=books, query=query, csrf_token=csrf_token)
+
+from flask import request
+
+@views.route("/add_openlibrary_book", methods=["POST"])
+@login_required
+def add_openlibrary_book():
+    title = request.form.get("title")
+    author = request.form.get("author")
+    is_recommended = request.form.get("is_recommended") != "False"
+    is_read = request.form.get("is_read") == "True"
+    if not (title and author):
+        flash("Missing title or author.")
+        return redirect(url_for("views.browse"))
+    shelf = BookShelf()
+    shelf.add_open_library_book(current_user.id,request.form)
+    msg = f"📚 '{title}' added"
+
+    if is_read:
+        msg += " and marked as read ✅"
+    elif not is_recommended:
+        msg += " — we'll show fewer like this 💔"
+    else:
+        msg += " to your watchlist ➕"
+
+    flash(msg)
+    return redirect(url_for("views.browse", q=request.args.get("q", "")))
+
+
 
 
 @views.route("/register", methods=['GET', 'POST'])
@@ -69,6 +113,8 @@ def start_task():
 @views.route("/recommendations")
 @login_required
 def recommendations():
+    csrf_token = generate_csrf()
+
     books = db.session.execute(
         db.select(UserBook)
     .where(
@@ -78,7 +124,7 @@ def recommendations():
     )
         .options(db.joinedload(UserBook.book))
     ).scalars().all()
-    return render_template("recommendations.html", result=books)
+    return render_template("recommendations.html", result=books, csrf_token=csrf_token)
 
 
 @views.route("/account", methods=['GET', 'POST'])
@@ -104,9 +150,11 @@ def logout():
     return redirect(url_for('views.home'))
 
 
-@views.route("/api/book_actions/<int:book_id>/<action>", methods=['POST', 'GET'])
+@views.route("/api/book_actions", methods=['POST', 'GET'])
 @login_required
-def book_actions(book_id, action):
+def book_actions():
+    book_id= request.form.get("book_id")
+    action=request.form.get("action")
     user_book = (
         db.session.query(UserBook)
         .filter_by(book_id=book_id, user_id=current_user.id)
