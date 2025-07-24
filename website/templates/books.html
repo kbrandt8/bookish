@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+
+
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">
+        {%if is_read%}
+        📚 Your Books
+        {%else%}
+        📚 Your Watchlist
+        {%endif%}
+    </h2>
+
+    {% if result %}
+<div class="card bg-light mb-3">
+  <div class="card-body text-center">
+      {%if is_read%}
+      All books added via CSV, or added by you will appear here. To stop getting recommendations based on these books, make sure to mark them as not interested.
+      {%else%}
+      <strong>Tip:</strong> Your watchlist helps improve future recommendations. Use the action buttons to refine!
+      {%endif%}
+  </div>
+</div>
+    <form method="POST" action="{{ url_for('views.batch_book_action',state=state) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="d-flex justify-content-between mb-3">
+            <div>
+                {%if not is_read%}
+                <button name="action" value="mark_read" class="btn btn-success btn-sm">✔ Mark as Read</button>
+                <button name="action" value="not_recommended" class="btn btn-secondary btn-sm">💔 Not Interested</button>
+               {%else %}
+                <button name="action" value="not_recommended" class="btn btn-secondary btn-sm">💔 Show fewer like this</button>
+
+                {%endif%}
+                <button name="action" value="delete" class="btn btn-danger btn-sm">✘ Delete</button>
+            </div>
+            <div>
+                <label><input type="checkbox" id="selectAll"> Select All</label>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col"></th>
+                        <th scope="col">Title</th>
+                        <th scope="col">Author</th>
+                        <th scope="col">Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in result %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="book_ids" value="{{ item.book.id }}" class="book-checkbox">
+                        </td>
+                        <td>{{ item.book.title }}</td>
+                        <td>{{ item.book.author }}</td>
+                        <td>
+                            <a href="{{ item.book.link }}" class="btn btn-sm btn-outline-primary" target="_blank">🔗</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+    <script>
+        // Select/Deselect All Checkboxes
+        document.getElementById("selectAll").addEventListener("click", function () {
+            const checkboxes = document.querySelectorAll(".book-checkbox");
+            checkboxes.forEach(cb => cb.checked = this.checked);
+        });
+    </script>
+
+
+    {% else %}
+    {%if is_read%}
+    You haven’t marked any books as read yet. Once you do, they’ll appear here. 📖
+    {%else%}
+    <p class="text-center">Your watchlist is empty. Browse and add books to get started 📖</p>
+    {%endif%}
+    {% endif %}
+</div>
+{% endblock %}
