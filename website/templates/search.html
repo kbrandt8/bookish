@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<form method="GET" action="{{ url_for('views.browse') }}">
+<form method="GET" action="{{ url_for('views.search') }}">
     <div class="input-group mb-3 container-sm text-center" style="margin:1rem;">
         <input type="text" name="q" class="form-control" placeholder="Search OpenLibrary..." value="{{ query }}">
         <button type="submit" class="btn btn-primary" id="button-addon2">Search</button>

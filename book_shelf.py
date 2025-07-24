@@ -11,18 +11,27 @@ class BookShelf:
         self.recommendations: List[Dict] = []
         self.subjects: List[str] = []
 
+
     def books_from_subjects(self, user_id):
         print("Getting subjects...")
+        self.status = "Getting subjects..."
         self.sort_subjects(user_id)
         self.get_subjects(user_id)
         print(f"Searching Subjects...\n")
+        self.status = "Searching subjects..."
+
         for subject in self.subjects:
             self.search_subject(subject)
         print(f"Sorting recommendations...")
+        self.status = "Sorting recommendations..."
+
         self.sort_books()
         print(f"Saving to database... \n")
+        self.status = "Saving to database..."
+
         self.add_books(user_id)
         print("Enjoy your new recs!")
+        self.status = "Enjoy your new recs!"
 
     def sort_subjects(self, user_id):
         user_books = db.session.execute(
@@ -75,7 +84,6 @@ class BookShelf:
 
     def add_books(self, user_id, is_read=False, owned_books=None):
         books = owned_books if owned_books is not None else self.recommendations
-
         for book_data in books:
             title, author = book_data["Title"], book_data["Author"]
             link = f"https://openlibrary.org{book_data['Key']}"
@@ -121,6 +129,9 @@ class BookShelf:
             existing_userbook = UserBook.query.filter_by(user_id=user_id, book_id=book.id).first()
             if not existing_userbook:
                 db.session.add(UserBook(user_id=user_id, book_id=book.id, is_read=is_read))
+            user_book = UserBook.query.filter_by(user_id=user_id, book_id=book.id).first()
+            print(user_book.book.id)
+            self.book_log.append(user_book)
 
         db.session.commit()
 

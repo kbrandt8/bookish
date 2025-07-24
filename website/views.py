@@ -1,6 +1,6 @@
 from threading import Thread
 
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, jsonify
 from flask import current_app
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from flask_wtf.csrf import generate_csrf
@@ -12,6 +12,7 @@ from .services.user_service import register_new_user, validate_login, add_user_b
 
 views = Blueprint('views', __name__)
 login_manager = LoginManager()
+recommendation_status = {}
 
 
 def run_in_thread(func):
@@ -34,8 +35,8 @@ def home():
     return render_template("index.html")
 
 
-@views.route("/browse", methods=["GET"])
-def browse():
+@views.route("/search", methods=["GET"])
+def search():
     query = request.args.get("q", "").strip()
     books = []
     csrf_token = generate_csrf()
@@ -47,7 +48,7 @@ def browse():
         except RuntimeError as e:
             flash(str(e))
 
-    return render_template("browse.html", books=books, query=query, csrf_token=csrf_token)
+    return render_template("search.html", books=books, query=query, csrf_token=csrf_token)
 
 
 from flask import request
@@ -62,7 +63,7 @@ def add_openlibrary_book():
     is_read = request.form.get("is_read") == "True"
     if not (title and author):
         flash("Missing title or author.")
-        return redirect(url_for("views.browse"))
+        return redirect(url_for("views.search"))
     shelf = BookShelf()
     shelf.add_open_library_book(current_user.id, request.form)
     msg = f"📚 '{title}' added"
@@ -75,7 +76,7 @@ def add_openlibrary_book():
         msg += " to your watchlist ➕"
 
     flash(msg)
-    return redirect(url_for("views.browse", q=request.args.get("q", "")))
+    return redirect(url_for("views.search", q=request.args.get("q", "")))
 
 
 @views.route("/register", methods=['GET', 'POST'])
@@ -104,12 +105,73 @@ def login():
     return render_template("login.html", form=form)
 
 
-@views.route("/start_search")
+@views.route("/get_recs")
 @login_required
-def start_task():
-    user = current_user.id
-    run_in_thread(lambda: BookShelf().books_from_subjects(user))
+def get_recs():
+    user_id = current_user.id
+    app = current_app._get_current_object()
+    recommendation_status[user_id] = {"ready": False, "msg": "Initializing...", "progress": 0}
+
+    def run_task():
+        with app.app_context():
+            try:
+                shelf = BookShelf()
+
+                def update_status(message, progress):
+                    print(message)
+                    recommendation_status[user_id].update(msg=message, progress=progress)
+
+                update_status("📚 Analyzing your books...", 10)
+                shelf.sort_subjects(user_id)
+
+                update_status("📘 Gathering your preferred subjects...", 25)
+                shelf.get_subjects(user_id)
+
+                update_status("🔍 Searching OpenLibrary by subject...", 50)
+                for subject in shelf.subjects:
+                    shelf.search_subject(subject)
+
+                update_status("📊 Sorting your best matches...", 75)
+                shelf.sort_books()
+
+                update_status("💾 Saving recommendations to your watchlist...", 90)
+                shelf.add_books(user_id)
+
+                update_status("✅ Complete!", 100)
+                recommendation_status[user_id].update(ready=True)
+
+            except Exception as e:
+                print(f"Error during recommendation task: {e}")
+                recommendation_status[user_id] = {
+                    "ready": True,
+                    "msg": "An error occurred. Please try again.",
+                    "progress": 100
+                }
+
+    Thread(target=run_task).start()
     return render_template("loading.html")
+
+
+@views.route("/recommendation_status")
+@login_required
+def recommendation_status_check():
+    user_id = current_user.id
+    status = recommendation_status.get(user_id, {"ready": False, "msg": "Waiting...", "progress": 0})
+    return jsonify(status)
+
+
+@views.route("/results", methods=["POST", "GET"])
+@login_required
+def results():
+    user = current_user.id
+    result_books = db.session.execute(
+        db.select(UserBook)
+        .where(
+            UserBook.user_id == user,
+            UserBook.is_read == False,
+            UserBook.is_recommended == True)
+    ).scalars().all()
+    return render_template("recommendations.html", results=result_books[-15:])
 
 
 @views.route("/books/<state>")
@@ -125,6 +187,7 @@ def books(state):
         )
         .options(db.joinedload(UserBook.book))
     ).scalars().all()
+    books.reverse()
     return render_template(
         "books.html",
         result=books,
