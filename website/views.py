@@ -8,8 +8,8 @@ from flask_wtf.csrf import generate_csrf
 
 from book_shelf import BookShelf
 from .forms import LoginForm, RegisterForm, UploadForm
-from .models import User, db, UserBook
-from .services.user_service import register_new_user, validate_login, add_user_books
+from .models import User, db, UserBook, UserSubject
+from .services.user_service import register_new_user, validate_login, add_user_books, user_book_batch
 
 views = Blueprint('views', __name__)
 login_manager = LoginManager()
@@ -43,7 +43,6 @@ def home():
 
             )
         ).scalars().all()
-        print(read[0].book.title)
         not_read = db.session.execute(
             db.select(UserBook)
             .where(
@@ -241,23 +240,16 @@ def logout():
 def batch_book_action(state):
     book_ids = request.form.getlist("book_ids")
     action = request.form.get("action")
-
     if not book_ids or not action:
         flash("No books selected or invalid action.", "warning")
         return redirect(url_for("views.watchlist", state=state))
+    app = current_app._get_current_object()
 
-    for book_id in book_ids:
-        user_book = UserBook.query.filter_by(user_id=current_user.id, book_id=book_id).first()
-        if not user_book:
-            continue
-
-        if action == "delete":
-            db.session.delete(user_book)
-        elif action == "mark_read":
-            user_book.is_read = True
-        elif action == "not_recommended":
-            user_book.is_recommended = False
-
-    db.session.commit()
-    flash("Batch update successful!", "success")
-    return redirect(url_for("views.books", state=state))
+    def run_task():
+        with app.app_context():
+            return user_book_batch(current_user.id, book_ids, action)
+    if run_task():
+        flash("Batch update successful!", "success")
+        return redirect(url_for("views.books", state=state))
+    else:
+        flash("Action not valid")
