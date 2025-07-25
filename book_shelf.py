@@ -129,9 +129,6 @@ class BookShelf:
             existing_userbook = UserBook.query.filter_by(user_id=user_id, book_id=book.id).first()
             if not existing_userbook:
                 db.session.add(UserBook(user_id=user_id, book_id=book.id, is_read=is_read))
-            user_book = UserBook.query.filter_by(user_id=user_id, book_id=book.id).first()
-            print(user_book.book.id)
-            self.book_log.append(user_book)
 
         db.session.commit()
 

@@ -2,6 +2,7 @@ from threading import Thread
 
 from flask import Blueprint, render_template, redirect, url_for, flash, jsonify
 from flask import current_app
+from flask import request
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from flask_wtf.csrf import generate_csrf
 
@@ -32,6 +33,30 @@ def load_user(user_id):
 
 @views.route("/")
 def home():
+    if current_user.is_authenticated:
+        read = db.session.execute(
+            db.select(UserBook)
+            .where(
+                UserBook.user_id == current_user.id,
+                UserBook.is_read == True,
+                UserBook.is_recommended == True
+
+            )
+        ).scalars().all()
+        print(read[0].book.title)
+        not_read = db.session.execute(
+            db.select(UserBook)
+            .where(
+                UserBook.user_id == current_user.id,
+                UserBook.is_read == False,
+                UserBook.is_recommended == True
+            )
+        ).scalars().all()
+        not_read.reverse()
+        read.reverse()
+        return render_template(
+            "index.html",
+            results={"read": read, "not_read": not_read})
     return render_template("index.html")
 
 
@@ -49,9 +74,6 @@ def search():
             flash(str(e))
 
     return render_template("search.html", books=books, query=query, csrf_token=csrf_token)
-
-
-from flask import request
 
 
 @views.route("/add_openlibrary_book", methods=["POST"])
@@ -98,7 +120,7 @@ def login():
         user = validate_login(form.email.data.lower(), form.password.data)
         if user:
             login_user(user)
-            return redirect(url_for('views.account'))
+            return redirect(url_for('views.home'))
         else:
             flash("Please check credentials!")
 
