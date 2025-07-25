@@ -2,4 +2,8 @@
 {% from 'bootstrap5/form.html' import render_form %}
 {% block content %}
 {{ render_form(form) }}
+<p class="mt-5">
+   <a  href="{{url_for('views.login')}}">Already a member?</a>
+</p>
+
 {% endblock %}
