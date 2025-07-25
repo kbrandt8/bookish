@@ -95,10 +95,28 @@
 
     {% else %}
     {%if is_read%}
-    You haven’t marked any books as read yet. Once you do, they’ll appear here. 📖
+    <p class="text-center">📖 You haven’t added any books yet. Want better recommendations? Try importing your past reads or searching for books manually!</p>
     {%else%}
     <p class="text-center">Your watchlist is empty. Browse and add books to get started 📖</p>
     {%endif%}
+
+<div class="row text-center">
+
+<div class="col">
+<a href="{{url_for('views.search')}}">
+    <button class="btn btn-primary " type="button">
+        Search Books
+    </button>
+</a>
+</div>
+<div class="col">
+
+<a href="{{url_for('views.account')}}">
+    <button class="btn btn-primary " type="button">
+        Import data
+    </button>
+</a>
+</div></div>
     {% endif %}
 </div>
 {% endblock %}

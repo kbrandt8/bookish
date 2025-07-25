@@ -11,6 +11,11 @@ class BookShelf:
         self.recommendations: List[Dict] = []
         self.subjects: List[str] = []
 
+    def is_new_user(self,user_id:int)->bool:
+        return not db.session.query(
+            db.exists().where(UserSubject.user_id == user_id)
+        ).scalar()
+
 
     def books_from_subjects(self, user_id):
         print("Getting subjects...")
