@@ -5,10 +5,12 @@ from flask import current_app
 from flask import request
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from flask_wtf.csrf import generate_csrf
+from lxml.html import submit_form
 
+from book_deals import BookDeal
 from book_shelf import BookShelf
 from .forms import LoginForm, RegisterForm, UploadForm
-from .models import User, db, UserBook, UserSubject
+from .models import User, db, UserBook
 from .services.user_service import register_new_user, validate_login, add_user_books, user_book_batch
 
 views = Blueprint('views', __name__)
@@ -176,6 +178,28 @@ def get_recs():
         return render_template("search.html")
 
 
+@views.route("/deals",methods=["GET","POST"])
+@login_required
+def deals():
+    user = current_user.id
+    results = db.session.execute(
+        db.select(UserBook)
+        .where(
+            UserBook.user_id == user,
+            UserBook.is_recommended == True,
+            UserBook.is_read == False,
+            UserBook.deal != None
+        )
+    ).scalars().all()
+    result = sorted(results, key=lambda r:r.deal)
+    if request.method =="POST":
+        flash("Checking for deals on your unread books!", "success")
+        run_in_thread(lambda: BookDeal(user,result))
+        return render_template("deals.html", result=result, csrf_token = generate_csrf())
+    else:
+        return render_template("deals.html", result=result,csrf_token = generate_csrf())
+
+
 @views.route("/recommendation_status")
 @login_required
 def recommendation_status_check():
@@ -251,6 +275,7 @@ def batch_book_action(state):
     def run_task():
         with app.app_context():
             return user_book_batch(current_user.id, book_ids, action)
+
     if run_task():
         flash("Batch update successful!", "success")
         return redirect(url_for("views.books", state=state))

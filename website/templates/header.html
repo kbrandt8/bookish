@@ -1,44 +1,54 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="{{ url_for('views.home') }}">📚 Bookish</a>
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('views.home') }}">📚 Bookish</a>
 
-    <!-- Hamburger toggle button -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
-            aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+        <!-- Hamburger toggle button -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
+                aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-    <!-- Navbar links -->
-    <div class="collapse navbar-collapse" id="navbarNavDropdown">
-      <ul class="navbar-nav ms-auto">
+        <!-- Navbar links -->
+        <div class="collapse navbar-collapse" id="navbarNavDropdown">
+            <ul class="navbar-nav ms-auto">
 
-        <li class="nav-item">
-          <a class="nav-link {% if request.endpoint == 'views.home' %}active{% endif %}" href="{{ url_for('views.home') }}">Home</a>
-        </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'views.home' %}active{% endif %}"
+                       href="{{ url_for('views.home') }}">Home</a>
+                </li>
 
-        <li class="nav-item">
-          <a class="nav-link {% if request.endpoint == 'views.search' %}active{% endif %}" href="{{ url_for('views.search') }}">Search</a>
-        </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'views.search' %}active{% endif %}"
+                       href="{{ url_for('views.search') }}">Search</a>
+                </li>
 
-        {% if not current_user.is_authenticated %}
-        <li class="nav-item">
-          <a class="nav-link {% if request.endpoint == 'views.login' %}active{% endif %}" href="{{ url_for('views.login') }}">Login</a>
-        </li>
-        {% else %}
-        <li class="nav-item">
-          <a class="nav-link {% if request.endpoint == 'views.books' and state == 'watchlist' %}active{% endif %}" href="{{ url_for('views.books', state='watchlist') }}">Watchlist</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link {% if request.endpoint == 'views.books' and state == 'read' %}active{% endif %}" href="{{ url_for('views.books', state='read') }}">Your Books</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link {% if request.endpoint == 'views.account' %}active{% endif %}" href="{{ url_for('views.account') }}">Account</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('views.logout') }}">Logout</a>
-        </li>
-        {% endif %}
-      </ul>
+                {% if not current_user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'views.login' %}active{% endif %}"
+                       href="{{ url_for('views.login') }}">Login</a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'views.books' and state == 'watchlist' %}active{% endif %}"
+                       href="{{ url_for('views.books', state='watchlist') }}">Watchlist</a>
+                </li>
+            <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'views.deals' %}active{% endif %}"
+                       href="{{ url_for('views.deals') }}">Your Deals</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'views.books' and state == 'read' %}active{% endif %}"
+                       href="{{ url_for('views.books', state='read') }}">Your Books</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'views.account' %}active{% endif %}"
+                       href="{{ url_for('views.account') }}">Account</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('views.logout') }}">Logout</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
     </div>
-  </div>
 </nav>

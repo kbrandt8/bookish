@@ -25,7 +25,6 @@ def validate_login(email, password):
 
 
 def get_user_info(form):
-    print(f"{form.data_type.data}{form.file.data}")
     data_type = form.data_type.data
     file_name = "user_data.csv"
     file = form.file.data
@@ -122,3 +121,12 @@ def user_book_batch(user_id, book_ids, action):
 
     return True
 
+def user_book_deal(user_id,book):
+    user_book = db.session.execute(
+        db.select(UserBook)
+        .where(UserBook.user_id == user_id,
+               UserBook.book_id == book['id'])
+    ).scalars().first()
+    user_book.deal = book['price']
+    user_book.deal_link = book['link']
+    db.session.commit()

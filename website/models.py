@@ -1,6 +1,6 @@
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import String, Boolean, Integer, ForeignKey, Table
+from sqlalchemy import String, Boolean, Integer, ForeignKey, Table,Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
@@ -18,6 +18,8 @@ class UserBook(db.Model):
     book_id:Mapped[int] = mapped_column(ForeignKey("books.id"), primary_key=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     is_recommended: Mapped[bool] = mapped_column(Boolean, default=True)
+    deal: Mapped[float] = mapped_column(Float)
+    deal_link: Mapped[str] = mapped_column(String(250))
 
     user = relationship("User", back_populates="user_books")
     book = relationship("Book", back_populates="user_books")
