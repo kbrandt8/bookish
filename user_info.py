@@ -8,7 +8,7 @@ class UserInfo:
 
     def load_csv(self,file_path, source:str):
         field_map = {
-            "sg":{"title":"Title","author":"Author","rating":"Star Rating" },
+            "sg":{"title":"Title","author":"Authors","rating":"Star Rating" },
             "gr":{"title":"Title", "author":"Author","rating":"My Rating"}
         }
         if source not in field_map:
