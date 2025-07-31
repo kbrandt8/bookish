@@ -23,6 +23,36 @@ def validate_login(email, password):
         return user
     return None
 
+def update_email(user_id,form):
+    user = User.query.filter_by(id = user_id).first()
+    if user and check_password_hash(user.password,form.password.data):
+        user.email = form.new_email.data
+        db.session.commit()
+        return True
+    else:
+        return False
+
+
+def update_password(user_id,form):
+    user = User.query.filter_by(id = user_id).first()
+    if user and check_password_hash(user.password,form.old_password.data):
+        password = generate_password_hash(form.new_password.data)
+        user.password = password
+        db.session.commit()
+        return True
+    else:
+        return False
+
+
+def update_name(user_id,form):
+    user = User.query.filter_by(id = user_id).first()
+    if user:
+        user.name = form.new_name.data
+        db.session.commit()
+        return True
+    else:
+        return False
+
 
 def get_user_info(form):
     data_type = form.data_type.data

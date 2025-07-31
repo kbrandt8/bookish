@@ -5,13 +5,13 @@ from flask import current_app
 from flask import request
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from flask_wtf.csrf import generate_csrf
-from lxml.html import submit_form
 
 from book_deals import BookDeal
 from book_shelf import BookShelf
-from .forms import LoginForm, RegisterForm, UploadForm
+from .forms import LoginForm, RegisterForm, UploadForm, EmailForm, PasswordForm, NameForm
 from .models import User, db, UserBook
-from .services.user_service import register_new_user, validate_login, add_user_books, user_book_batch
+from .services.user_service import register_new_user, validate_login, add_user_books, user_book_batch, update_email, \
+    update_password, update_name
 
 views = Blueprint('views', __name__)
 login_manager = LoginManager()
@@ -178,7 +178,7 @@ def get_recs():
         return render_template("search.html")
 
 
-@views.route("/deals",methods=["GET","POST"])
+@views.route("/deals", methods=["GET", "POST"])
 @login_required
 def deals():
     user = current_user.id
@@ -191,13 +191,13 @@ def deals():
             UserBook.deal != None
         )
     ).scalars().all()
-    result = sorted(results, key=lambda r:r.deal)
-    if request.method =="POST":
+    result = sorted(results, key=lambda r: r.deal)
+    if request.method == "POST":
         flash("Checking for deals on your unread books!", "success")
-        run_in_thread(lambda: BookDeal(user,result))
-        return render_template("deals.html", result=result, csrf_token = generate_csrf())
+        run_in_thread(lambda: BookDeal(user, result))
+        return render_template("deals.html", result=result, csrf_token=generate_csrf())
     else:
-        return render_template("deals.html", result=result,csrf_token = generate_csrf())
+        return render_template("deals.html", result=result, csrf_token=generate_csrf())
 
 
 @views.route("/recommendation_status")
@@ -248,12 +248,41 @@ def books(state):
 @views.route("/account", methods=['GET', 'POST'])
 @login_required
 def account():
-    form = UploadForm()
-    if form.validate_on_submit():
-        user = current_user.id
-        run_in_thread(lambda: add_user_books(user, form))
-        flash("Books are being processed...")
-    return render_template("account.html", form=form)
+    csv_form = UploadForm()
+    email_form = EmailForm()
+    password_form = PasswordForm()
+    name_form = NameForm()
+    form_name = request.form.get("submit")
+
+    if form_name == "Upload" and csv_form.validate_on_submit():
+        run_in_thread(lambda: add_user_books(current_user.id, csv_form))
+        flash("Books are being processed...", "info")
+
+    elif form_name == "Update Email" and email_form.validate_on_submit():
+        if update_email(current_user.id, email_form):
+            flash("Email updated!", "success")
+        else:
+            flash("Something went wrong", "danger")
+
+    elif form_name == "Update Password" and password_form.validate_on_submit():
+        if update_password(current_user.id, password_form):
+            flash("Password changed successfully.", "success")
+        else:
+            flash("Something went wrong", "danger")
+
+    elif form_name == "Update Name" and name_form.validate_on_submit():
+        if update_name(current_user.id, name_form):
+            flash("Name updated.", "success")
+        else:
+            flash("Something went wrong", "danger")
+
+    return render_template(
+        "account.html",
+        csv_form=csv_form,
+        email_form=email_form,
+        password_form=password_form,
+        name_form=name_form
+    )
 
 
 @views.route("/logout")

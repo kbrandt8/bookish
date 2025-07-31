@@ -11,7 +11,7 @@ from wtforms.validators import InputRequired
 
 class RegisterForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
-    name = StringField('Name', validators=[DataRequired()])
+    name = StringField('Name', validators=[DataRequired(),Length(min=8, max=40)])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=8, max=40)])
     confirm = PasswordField('Confirm Password',
                             validators=[DataRequired(), EqualTo('password', message='passwords must match')])
@@ -33,3 +33,26 @@ class UploadForm(FlaskForm):
                        choices=[('gr', 'GoodReads'), ('sg', 'StoryGraph')],
                        validators=[InputRequired()])
     submit = SubmitField('Upload')
+
+class EmailForm(FlaskForm):
+    new_email = StringField('New Email', validators=[DataRequired(), Email()])
+    confirm = StringField('Confirm Email', validators=[DataRequired(), Email(),EqualTo('new_email',message='emails must match')])
+
+    password = PasswordField('Password',validators=[DataRequired(),Length(min=8, max=40)])
+    submit = SubmitField('Update Email')
+
+
+class PasswordForm(FlaskForm):
+    old_password = PasswordField('Old Password',validators=[DataRequired(),Length(min=8, max=40)])
+    new_password = PasswordField('New Password',validators=[DataRequired(),Length(min=8, max=40)])
+    confirm_password = PasswordField('Confirm Password',
+                            validators=[DataRequired(), EqualTo('new_password', message='passwords must match')])
+    submit = SubmitField('Update Password')
+
+
+
+class NameForm(FlaskForm):
+    new_name = StringField('Name', validators=[DataRequired(),Length(min=1, max=40)])
+    submit = SubmitField('Update Name')
+
+

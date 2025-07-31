@@ -1,7 +1,61 @@
 {% extends "base.html" %}
 {% from 'bootstrap5/form.html' import render_form %}
 {% block content %}
+
 <h1>Hello, {{ current_user.name }}</h1>
-{{ render_form(form) }}
+<div class="accordion" id="accountAccordion">
+        <div class="accordion-item">
+        <h2 class="accordion-header" id="headingUpload">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUpload">
+                Upload CSV
+            </button>
+        </h2>
+        <div id="collapseUpload" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+                {{ render_form(csv_form) }}
+            </div>
+        </div>
+    </div>
+
+
+<div class="accordion-item">
+        <h2 class="accordion-header" id="headingEmail">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEmail">
+                Update Email
+            </button>
+        </h2>
+        <div id="collapseEmail" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+                {{ render_form(email_form) }}
+            </div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingPassword">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePassword">
+                Update Password
+            </button>
+        </h2>
+        <div id="collapsePassword" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+                {{ render_form(password_form) }}
+            </div>
+        </div>
+    </div>
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingName">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseName">
+                Upload Name
+            </button>
+        </h2>
+        <div id="collapseName" class="accordion-collapse collapse show">
+            <div class="accordion-body">
+                {{ render_form(name_form) }}
+            </div>
+        </div>
+    </div>
+
+
+</div>
 {% endblock %}
 
