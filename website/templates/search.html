@@ -1,15 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
-<form method="GET" action="{{ url_for('views.search') }}">
-    <div class="input-group mb-3 container-sm text-center" style="margin:1rem;">
-        <input type="text" name="q" class="form-control" placeholder="Search OpenLibrary..." value="{{ query }}">
-        <button type="submit" class="btn btn-primary" id="button-addon2">Search</button>
+<form method="GET" action="{{ url_for('views.search') }}" class="mb-4" id="searchForm">
+    <div class="input-group input-group-lg">
+        <input type="text" name="q" class="form-control"
+               placeholder="Search {{ filter if filter else 'OpenLibrary' }}..."
+               value="{{ query }}">
+
+        <select name="filter" class="form-select" aria-label="Default select example" style="max-width: 150px;">
+           <option value="all" {% if not filter %}selected{% endif %}>All</option>
+            <option value="title" {% if filter==
+            'title' %}selected{% endif %}>Title</option>
+            <option value="author" {% if filter==
+            'author' %}selected{% endif %}>Author</option>
+            <option value="subject" {% if filter==
+            'subject' %}selected{% endif %}>Subject</option>
+        </select>
+
+        <button type="submit" class="btn btn-primary">🔍</button>
     </div>
 </form>
-
-{% if books %}
+<div id="loadingSpinner" class="text-center mt-4" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Searching books...</p>
+</div>
+{% if search_results.books %}
+<h3> {{search_results.num_found}} Books Found</h3>
 <div class="row row-cols-1 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-4">
-    {% for book in books %}
+    {% for book in search_results.books %}
     <div class="col">
 
         <div class="card h-100 d-flex flex-column" style="width: 100%;">
@@ -85,10 +104,48 @@
 
 
     </div>
-
-    {% endfor %}
 </div>
 
-</div>
+{% endfor %}
+
 {% endif %}
+
+{% if search_results.num_found > 100 %}
+<nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page > 1 %}
+        <li class="page-item">
+            <a class="page-link"
+               href="{{ url_for('views.search', q=query, filter=filter if filter else None, page=page-1) }}">Previous</a>
+        </li>
+        {% endif %}
+
+        {% for p in page_range %}
+        <li class="page-item">
+            <a class="page-link {%if p == page%} disabled {%endif%}"
+               href="{{ url_for('views.search', q=query, filter=filter if filter else None, page=p) }}">{{p}}</a>
+        </li>
+        {% endfor %}
+
+
+        {% if page < total_pages %}
+        <li class="page-item">
+            <a class="page-link"
+               href="{{ url_for('views.search', q=query, filter=filter if filter else None, page=page+1) }}">Next</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<script>
+    const form = document.getElementById("searchForm");
+    const spinner = document.getElementById("loadingSpinner");
+
+    form.addEventListener("submit", function () {
+      form.style.display = "none";
+      spinner.style.display = "block";
+    });
+</script>
+
 {% endblock %}

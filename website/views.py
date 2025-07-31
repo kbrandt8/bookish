@@ -64,17 +64,33 @@ def home():
 @views.route("/search", methods=["GET"])
 def search():
     query = request.args.get("q", "").strip()
-    books = []
+    search_type = request.args.get("filter", "q").strip()
+    if search_type == "all":
+        search_type = "q"
+    page = int(request.args.get("page", "1"))
+    search_results = {"num_found":0,"books":[]}
+    total_pages = 1
+    page_range=range(0,1)
+
     csrf_token = generate_csrf()
     shelf = BookShelf()
-
     if query:
         try:
-            books = shelf.search_openlibrary_books(query)
+            search_results = shelf.search_openlibrary_books(search_type,query,page)
+            total_pages = int(int(search_results['num_found'])/100)
+            page_min = max(page - 5, 1)
+            page_max = min(page + 5, total_pages)
+            page_range = range(page_min, page_max + 1)
         except RuntimeError as e:
             flash(str(e))
-
-    return render_template("search.html", books=books, query=query, csrf_token=csrf_token)
+    return render_template("search.html",
+                           search_results=search_results,
+                           total_pages=total_pages,
+                           query=query,
+                           csrf_token=csrf_token,
+                           page=page,
+                           page_range=page_range,
+                           )
 
 
 @views.route("/add_openlibrary_book", methods=["POST"])

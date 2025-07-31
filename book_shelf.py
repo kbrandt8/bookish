@@ -248,17 +248,19 @@ class BookShelf:
 
         db.session.commit()
 
-    def search_openlibrary_books(self,query: str, limit=20):
+    def search_openlibrary_books(self,search_type: str,query: str, page):
         query = query.strip()
         if not query:
             return []
-
-        url = f"https://openlibrary.org/search.json?q={query}&fields=title,author_name,key,subject,edition_key"
+        url = f"https://openlibrary.org/search.json?{search_type}={query}&fields=title,author_name,key,subject,edition_key&page={page}"
         try:
             resp = requests.get(url, timeout=10)
             if resp.status_code == 200:
+                num_found = resp.json().get("numFound",0)
                 docs = resp.json().get("docs", [])
-                return [
+                return {
+                    "num_found":num_found,
+                    "books":[
                     {
                         "Title": doc.get("title", ""),
                         "Author": doc.get("author_name", ["Unknown"])[0],
@@ -266,8 +268,8 @@ class BookShelf:
                         "Subjects": doc.get("subject", []),
                         "Edition": doc.get("edition_key", [""])[0]
                     }
-                    for doc in docs[:limit]
-                ]
+                    for doc in docs
+                ]}
         except requests.RequestException as e:
             raise RuntimeError(f"OpenLibrary API failed: {e}")
 
