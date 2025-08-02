@@ -210,7 +210,15 @@ def deals():
     result = sorted(results, key=lambda r: r.deal)
     if request.method == "POST":
         flash("Checking for deals on your unread books!", "success")
-        run_in_thread(lambda: BookDeal(user, result))
+        check_deals = db.session.execute(
+            db.select(UserBook)
+            .where(
+                UserBook.user_id == user,
+                UserBook.is_recommended == True,
+                UserBook.is_read == False,
+            )
+        ).scalars().all()
+        run_in_thread(lambda: BookDeal(user, check_deals))
         return render_template("deals.html", result=result, csrf_token=generate_csrf())
     else:
         return render_template("deals.html", result=result, csrf_token=generate_csrf())

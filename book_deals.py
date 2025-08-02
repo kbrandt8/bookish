@@ -5,35 +5,81 @@ class BookDeal:
     def __init__(self,user,bookshelf):
         self.shelf = bookshelf
         self.user = user
+        self.sources = [
+            self.get_open_library_deal,
+            self.get_google_deal,
+
+        ]
         self.google_url = f"https://www.googleapis.com/books/v1/volumes?q="
         self.deals = []
-        self.start()
+        self.run()
 
-    def start(self):
+    def run(self):
         for book in self.shelf:
-            current_price = book.deal or float("inf")
-            self.get_google_info(book)
-            deals = sorted(self.deals, reverse=False, key=lambda d: d['price'])
-            if len(deals) > 0 and deals[0]['price']< current_price:
-                user_book_deal(self.user,deals[0])
-            else:
-                continue
+            current_price = book.deal if book.deal is not None else float("inf")
+            all_deals = []
+            for source in self.sources:
+                deal = source(book)
+                if deal:
+                    all_deals.append(deal)
+            if all_deals:
+                best_deal = min(all_deals,key=lambda d:d['price'])
+                print(best_deal)
+                if best_deal['price'] < current_price:
+                    user_book_deal(self.user,best_deal)
 
-    def get_google_info(self,book):
-        url = f"{self.google_url}{book.book.title}"
-        search = requests.get(url)
-        results = search.json()
-        for_sale = [{"title":book.book.title,
-                     "id":book.book_id,
-                     "price":item['saleInfo']['listPrice']['amount'],
-                     "link":item['saleInfo']["buyLink"]
-                     } for item in results.get("items")
-                    if item['saleInfo']
-                    and item['saleInfo']['saleability'] == "FOR_SALE"]
-        on_sale = sorted(for_sale, reverse=False, key=lambda d: d['price'])
-        if on_sale:
-            self.deals.append(on_sale[0])
-        else:
-            return False
+
+
+    def get_open_library_deal(self,book):
+        try:
+            url = (f"https://openlibrary.org/search.json?title={book.book.title}&author={book.book.author}"
+                   f"&fields=title,author_name,identifiers,ebook_access,has_fulltext,id_project_gutenberg,"
+                   f"id_librivox,id_standard_ebooks,lending_edition_s,lending_identifier_s"
+                   )
+            res = requests.get(url,timeout=6)
+            data = res.json()
+            for doc in data.get("docs",[]):
+                if doc.get("ebook_access") == "public":
+                    if doc.get("id_standard_books"):
+                        link = f"https://standardebooks.org/ebooks/{doc["id_standard_ebooks"][0]}"
+                    elif doc.get("id_project_gutenberg"):
+                        link = f"https://www.gutenberg.org/ebooks/{doc['id_project_gutenberg'][0]}"
+                    else:
+                        continue
+                    return {
+                        "title": book.book.title,
+                        "id": book.book_id,
+                        "price": 0.00,
+                        "link": link,
+                    }
+        except Exception as e:
+            print(f"[OpenLibrary Error] {e}")
+        return None
+
+
+    def get_google_deal(self,book):
+        try:
+            url = (f"https://www.googleapis.com/books/v1/volumes?"
+                   f"q={book.book.title}")
+            res = requests.get(url,timeout=6)
+            data=res.json()
+            items = data.get("items",[])
+            deals = []
+            for item in items:
+                sale_info = item.get("saleInfo",{})
+                if sale_info.get("saleability") == "FOR_SALE":
+                    price=sale_info.get("listPrice",{}).get("amount")
+                    link=sale_info.get("buyLink")
+                    if price is not None and link:
+                        deals.append({
+                            "title": book.book.title,
+                            "id": book.book_id,
+                            "price":price,
+                            "link":link
+                        })
+            return min(deals, key=lambda d:d['price'])
+        except Exception as e:
+            print(f"Google Books error: {e}")
+        return None
 
 
