@@ -167,8 +167,7 @@ def get_recs():
                     shelf.get_subjects(user_id)
 
                     update_status("🔍 Searching OpenLibrary by subject...", 50)
-                    for subject in shelf.subjects:
-                        shelf.search_subject(subject)
+                    shelf.search_subjects_bulk()
 
                     update_status("📊 Sorting your best matches...", 75)
                     shelf.sort_books()
@@ -272,6 +271,7 @@ def books(state):
 @views.route("/account", methods=['GET', 'POST'])
 @login_required
 def account():
+    user_id = current_user.id
     csv_form = UploadForm()
     email_form = EmailForm()
     password_form = PasswordForm()
@@ -279,23 +279,23 @@ def account():
     form_name = request.form.get("submit")
 
     if form_name == "Upload" and csv_form.validate_on_submit():
-        run_in_thread(lambda: add_user_books(current_user.id, csv_form))
+        run_in_thread(lambda: add_user_books(user_id, csv_form))
         flash("Books are being processed...", "info")
 
     elif form_name == "Update Email" and email_form.validate_on_submit():
-        if update_email(current_user.id, email_form):
+        if update_email(user_id, email_form):
             flash("Email updated!", "success")
         else:
             flash("Something went wrong", "danger")
 
     elif form_name == "Update Password" and password_form.validate_on_submit():
-        if update_password(current_user.id, password_form):
+        if update_password(user_id, password_form):
             flash("Password changed successfully.", "success")
         else:
             flash("Something went wrong", "danger")
 
     elif form_name == "Update Name" and name_form.validate_on_submit():
-        if update_name(current_user.id, name_form):
+        if update_name(user_id, name_form):
             flash("Name updated.", "success")
         else:
             flash("Something went wrong", "danger")
