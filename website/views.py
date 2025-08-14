@@ -215,7 +215,7 @@ def deals():
                 UserBook.user_id == user,
                 UserBook.is_recommended == True,
                 UserBook.is_read == False,
-            )
+            ).options(db.joinedload(UserBook.book))
         ).scalars().all()
         run_in_thread(lambda: BookDeal(user, check_deals))
         return render_template("deals.html", result=result, csrf_token=generate_csrf())
