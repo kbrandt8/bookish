@@ -57,8 +57,6 @@ def update_name(user_id,form):
 def get_user_info(form):
     data_type = form.data_type.data
     file_name = "user_data.csv"
-    file = form.file.data
-    file.save(file_name)
     user = UserInfo()
     user.load_csv(file_name, source=data_type)
     return user.all_books
@@ -71,7 +69,6 @@ def add_user_books(user_id, form):
     for book in books:
         new_book_info = shelf.book_info(book)
         if new_book_info is not None:
-            print(new_book_info)
             owned_books.append(new_book_info)
     shelf.add_books(user_id, is_read=True, owned_books=owned_books)
 from website.models import db, UserBook, Book, Subject, UserSubject

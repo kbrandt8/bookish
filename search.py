@@ -1,6 +1,7 @@
 import asyncio
-
+import certifi
 import aiohttp
+import ssl
 
 
 class Search:
@@ -25,8 +26,9 @@ class Search:
 
 
     async def search(self, session,url):
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
         try:
-            async with session.get(url, timeout=8) as res:
+            async with session.get(url, timeout=8,ssl=ssl_context) as res:
                 data = await res.json()
                 self.results_raw.append(data)
         except Exception as e:

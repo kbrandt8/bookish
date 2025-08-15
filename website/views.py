@@ -279,6 +279,8 @@ def account():
     form_name = request.form.get("submit")
 
     if form_name == "Upload" and csv_form.validate_on_submit():
+        file_path = "user_data.csv"
+        csv_form.file.data.save(file_path)
         run_in_thread(lambda: add_user_books(user_id, csv_form))
         flash("Books are being processed...", "info")
 
@@ -318,16 +320,18 @@ def logout():
 @views.route("/batch_book_action/<state>", methods=["POST"])
 @login_required
 def batch_book_action(state):
+    user_id=current_user.id
     book_ids = request.form.getlist("book_ids")
     action = request.form.get("action")
     if not book_ids or not action:
         flash("No books selected or invalid action.", "warning")
         return redirect(url_for("views.watchlist", state=state))
     app = current_app._get_current_object()
-
+    print(book_ids,action)
+    books = [int(book) for book in book_ids]
     def run_task():
         with app.app_context():
-            return user_book_batch(current_user.id, book_ids, action)
+            return user_book_batch(user_id, books, action)
 
     if run_task():
         flash("Batch update successful!", "success")

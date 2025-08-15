@@ -24,7 +24,6 @@ class BookDeal:
                     all_deals.append(deal)
             if all_deals:
                 best_deal = min(all_deals,key=lambda d:d['price'])
-                print(best_deal)
                 if best_deal['price'] < current_price:
                     user_book_deal(self.user,best_deal)
 
