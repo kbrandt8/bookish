@@ -2,46 +2,78 @@
 {% block content %}
 
 
-    <h2 class="mb-4 text-center">
-Book Deals
-    </h2>
-    {% if result %}
+<h2 class="mb-4 text-center">
+    Book Deals
+</h2>
+{% if not result %}
+
+{%if has_watched_books%}
+<div class="card bg-light mb-3 collapse show" id="infoCard_1">
+    <div class="card-body text-center position-relative">
+        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-toggle="collapse"
+                data-bs-target="#infoCard_1" aria-label="Close"></button>
+        <p> Ready to check for more Book Deals?</p>
+        <form method="POST" action="{{ url_for('views.deals') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <button type="submit" class="btn btn-primary">Update Deals</button>
+        </form>
+    </div>
+</div>
+{%endif%}
+{%if not has_watched_books%}
+
+<div class="card bg-light mb-3 collapse show" id="infoCard_2">
+    <div class="card-body text-center position-relative">
+        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-toggle="collapse"
+                data-bs-target="#infoCard_2" aria-label="Close"></button>
+        <p> Looks like your watchlist is empty:</p>
+        <a href="{{url_for('views.get_recs')}}"><button class="btn btn-primary"> Get Recommendations</button></a>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+
+{% if result %}
 
 <div class="card bg-light mb-3 collapse show" id="infoCard">
     <div class="card-body text-center position-relative">
-        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-toggle="collapse" data-bs-target="#infoCard" aria-label="Close"></button>
-       <p> Ready to check for more Book Deals?</p>
+        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-toggle="collapse"
+                data-bs-target="#infoCard" aria-label="Close"></button>
+        <p> Ready to check for more Book Deals?</p>
         <form method="POST" action="{{ url_for('views.deals') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-        <button type="submit" class="btn btn-primary">Update Deals</button></form>
+            <button type="submit" class="btn btn-primary">Update Deals</button>
+        </form>
     </div>
 </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                <tr>
-                    <th scope="col">Title</th>
-                    <th scope="col">Author</th>
-                    <th scope="col">Price</th>
-                    <th scope="col">Buy</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for item in result %}
-                <tr>
-                    <td>{{ item.book.title }}</td>
-                    <td>{{ item.book.author }}</td>
-                    <td>{{item.deal}}</td>
-                    <td>
-                        <a href="{{ item.deal_link }}" class="btn btn-sm btn-outline-primary" target="_blank">🔗</a>
-                    </td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {%endif%}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-light">
+        <tr>
+            <th scope="col">Title</th>
+            <th scope="col">Author</th>
+            <th scope="col">Price</th>
+            <th scope="col">Buy</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in result %}
+        <tr>
+            <td>{{ item.book.title }}</td>
+            <td>{{ item.book.author }}</td>
+            <td>{{item.deal}}</td>
+            <td>
+                <a href="{{ item.deal_link }}" class="btn btn-sm btn-outline-primary" target="_blank">🔗</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{%endif%}
 
 
 {% endblock %}

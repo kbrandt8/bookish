@@ -68,16 +68,16 @@ def search():
     if search_type == "all":
         search_type = "q"
     page = int(request.args.get("page", "1"))
-    search_results = {"num_found":0,"books":[]}
+    search_results = {"num_found": 0, "books": []}
     total_pages = 1
-    page_range=range(0,1)
+    page_range = range(0, 1)
 
     csrf_token = generate_csrf()
     shelf = BookShelf()
     if query:
         try:
-            search_results = shelf.search_openlibrary_books(search_type,query,page)
-            total_pages = int(int(search_results['num_found'])/100)
+            search_results = shelf.search_openlibrary_books(search_type, query, page)
+            total_pages = int(int(search_results['num_found']) / 100)
             page_min = max(page - 5, 1)
             page_max = min(page + 5, total_pages)
             page_range = range(page_min, page_max + 1)
@@ -157,7 +157,6 @@ def get_recs():
                 try:
 
                     def update_status(message, progress):
-                        print(message)
                         recommendation_status[user_id].update(msg=message, progress=progress)
 
                     update_status("📚 Analyzing your books...", 10)
@@ -207,6 +206,8 @@ def deals():
         )
     ).scalars().all()
     result = sorted(results, key=lambda r: r.deal)
+
+    has_watched_books = UserBook.query.filter_by(user_id=user, is_recommended=True, is_read=False).first()
     if request.method == "POST":
         flash("Checking for deals on your unread books!", "success")
         check_deals = db.session.execute(
@@ -218,9 +219,11 @@ def deals():
             ).options(db.joinedload(UserBook.book))
         ).scalars().all()
         run_in_thread(lambda: BookDeal(user, check_deals))
-        return render_template("deals.html", result=result, csrf_token=generate_csrf())
+        return render_template("deals.html",has_watched_books=has_watched_books,
+                               result=result, csrf_token=generate_csrf())
     else:
-        return render_template("deals.html", result=result, csrf_token=generate_csrf())
+        return render_template("deals.html", has_watched_books=has_watched_books,
+                               result=result, csrf_token=generate_csrf())
 
 
 @views.route("/recommendation_status")
@@ -281,7 +284,7 @@ def account():
     if form_name == "Upload" and csv_form.validate_on_submit():
         file = request.files["file"]
         source = request.form.get("data_type")
-        run_in_thread(lambda: add_user_books(user_id,file, source))
+        run_in_thread(lambda: add_user_books(user_id, file, source))
         flash("Books are being processed...", "info")
 
     elif form_name == "Update Email" and email_form.validate_on_submit():
@@ -320,15 +323,15 @@ def logout():
 @views.route("/batch_book_action/<state>", methods=["POST"])
 @login_required
 def batch_book_action(state):
-    user_id=current_user.id
+    user_id = current_user.id
     book_ids = request.form.getlist("book_ids")
     action = request.form.get("action")
     if not book_ids or not action:
         flash("No books selected or invalid action.", "warning")
         return redirect(url_for("views.watchlist", state=state))
     app = current_app._get_current_object()
-    print(book_ids,action)
     books = [int(book) for book in book_ids]
+
     def run_task():
         with app.app_context():
             return user_book_batch(user_id, books, action)

@@ -25,111 +25,11 @@
     </div>
     <p class="mt-2">Searching books...</p>
 </div>
-{% if search_results.books %}
-<h3>{{ search_results.num_found }} Books Found</h3>
-<div class="row row-cols-1 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-4">
-    {% for book in search_results.books %}
-    <div class="col">
-        <div class="card h-100 d-flex flex-column" style="width: 100%;">
-            <img src="https://covers.openlibrary.org/b/olid/{{ book.Edition }}-M.jpg"
-                 class="card-img-top"
-                 alt="{{ book.Title }} -- {{ book.Author }}">
-            <div class="card-body d-flex flex-column">
-                <div class="mt-auto text-center">
-                    <h5 class="card-title">{{ book.Title }} - {{ book.Author }}</h5>
-
-                    <a href="https://openlibrary.org/books/{{ book.Edition }}"
-                       class="btn btn-primary">Visit on OpenLibrary</a>
-
-                    {% if current_user.is_authenticated %}
-                    <div class="btn-group mt-2" role="group">
-                        <!-- Watchlist button -->
-                        <form method="POST" action="{{ url_for('views.add_openlibrary_book') }}">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <input type="hidden" name="title" value="{{ book.Title }}">
-                            <input type="hidden" name="author" value="{{ book.Author }}">
-                            <input type="hidden" name="key" value="{{ book.Key }}">
-                            <input type="hidden" name="is_read" value="False">
-                            <input type="hidden" name="is_recommended" value="True">
-                            {% for subject in book.Subjects %}
-                            <input type="hidden" name="subjects" value="{{ subject }}">
-                            {% endfor %}
-                            <button type="submit" class="btn btn-lg btn-outline-primary">➕ Watchlist</button>
-                        </form>
-
-                        <!-- Dropdown options -->
-                        <button type="button"
-                                class="btn btn-lg btn-outline-primary dropdown-toggle dropdown-toggle-split"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="visually-hidden">More options</span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end w-100">
-                            <li>
-                                <form method="POST" action="{{ url_for('views.add_openlibrary_book') }}">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                                    <input type="hidden" name="title" value="{{ book.Title }}">
-                                    <input type="hidden" name="author" value="{{ book.Author }}">
-                                    <input type="hidden" name="key" value="{{ book.Key }}">
-                                    <input type="hidden" name="is_read" value="True">
-                                    <input type="hidden" name="is_recommended" value="True">
-                                    {% for subject in book.Subjects %}
-                                    <input type="hidden" name="subjects" value="{{ subject }}">
-                                    {% endfor %}
-                                    <button type="submit" class="dropdown-item">✔ Mark as Read</button>
-                                </form>
-                            </li>
-                            <li>
-                                <form method="POST" action="{{ url_for('views.add_openlibrary_book') }}">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                                    <input type="hidden" name="title" value="{{ book.Title }}">
-                                    <input type="hidden" name="author" value="{{ book.Author }}">
-                                    <input type="hidden" name="key" value="{{ book.Key }}">
-                                    <input type="hidden" name="is_read" value="True">
-                                    <input type="hidden" name="is_recommended" value="False">
-                                    {% for subject in book.Subjects %}
-                                    <input type="hidden" name="subjects" value="{{ subject }}">
-                                    {% endfor %}
-                                    <button type="submit" class="dropdown-item text-danger">💔 See Fewer</button>
-                                </form>
-                            </li>
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
-{% if search_results.num_found > 100 %}
-<nav aria-label="Page navigation" class="mt-4">
-    <ul class="pagination justify-content-center">
-        {% if page > 1 %}
-        <li class="page-item">
-            <a class="page-link"
-               href="{{ url_for('views.search', q=query, filter=filter if filter else None, page=page-1) }}">Previous</a>
-        </li>
-        {% endif %}
-
-        {% for p in page_range %}
-        <li class="page-item">
-            <a class="page-link {%if p == page%} disabled {%endif%}"
-               href="{{ url_for('views.search', q=query, filter=filter if filter else None, page=p) }}">{{p}}</a>
-        </li>
-        {% endfor %}
-
-
-        {% if page < total_pages %}
-        <li class="page-item">
-            <a class="page-link"
-               href="{{ url_for('views.search', q=query, filter=filter if filter else None, page=page+1) }}">Next</a>
-        </li>
-        {% endif %}
-    </ul>
-</nav>
-{% endif %}
-
+{%if search_results %}
+{% with search_results=search_results%}
+{% include "search_results.html"  %}
+{%endwith%}
+{%endif%}
 <script>
     const form = document.getElementById("searchForm");
     const spinner = document.getElementById("loadingSpinner");
