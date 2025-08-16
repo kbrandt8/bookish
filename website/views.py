@@ -279,9 +279,9 @@ def account():
     form_name = request.form.get("submit")
 
     if form_name == "Upload" and csv_form.validate_on_submit():
-        file_path = "user_data.csv"
-        csv_form.file.data.save(file_path)
-        run_in_thread(lambda: add_user_books(user_id, csv_form))
+        file = request.files["file"]
+        source = request.form.get("data_type")
+        run_in_thread(lambda: add_user_books(user_id,file, source))
         flash("Books are being processed...", "info")
 
     elif form_name == "Update Email" and email_form.validate_on_submit():

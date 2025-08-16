@@ -2,7 +2,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from book_shelf import BookShelf
 from user_info import UserInfo
-from website.models import User, db, UserBook,Book,Subject, UserSubject
+from website.models import User, db, UserBook, Book, UserSubject
 
 
 def register_new_user(form):
@@ -23,9 +23,10 @@ def validate_login(email, password):
         return user
     return None
 
-def update_email(user_id,form):
-    user = User.query.filter_by(id = user_id).first()
-    if user and check_password_hash(user.password,form.password.data):
+
+def update_email(user_id, form):
+    user = User.query.filter_by(id=user_id).first()
+    if user and check_password_hash(user.password, form.password.data):
         user.email = form.new_email.data
         db.session.commit()
         return True
@@ -33,9 +34,9 @@ def update_email(user_id,form):
         return False
 
 
-def update_password(user_id,form):
-    user = User.query.filter_by(id = user_id).first()
-    if user and check_password_hash(user.password,form.old_password.data):
+def update_password(user_id, form):
+    user = User.query.filter_by(id=user_id).first()
+    if user and check_password_hash(user.password, form.old_password.data):
         password = generate_password_hash(form.new_password.data)
         user.password = password
         db.session.commit()
@@ -44,8 +45,8 @@ def update_password(user_id,form):
         return False
 
 
-def update_name(user_id,form):
-    user = User.query.filter_by(id = user_id).first()
+def update_name(user_id, form):
+    user = User.query.filter_by(id=user_id).first()
     if user:
         user.name = form.new_name.data
         db.session.commit()
@@ -54,24 +55,21 @@ def update_name(user_id,form):
         return False
 
 
-def get_user_info(form):
-    data_type = form.data_type.data
-    file_name = "user_data.csv"
+
+def add_user_books(user_id, file_storage, source: str):
     user = UserInfo()
-    user.load_csv(file_name, source=data_type)
-    return user.all_books
+    user.load_csv(file_storage, source=source)
 
-
-def add_user_books(user_id, form):
-    books = get_user_info(form)
+    books = user.all_books
     shelf = BookShelf()
     owned_books = []
+
     for book in books:
         new_book_info = shelf.book_info(book)
         if new_book_info is not None:
             owned_books.append(new_book_info)
+
     shelf.add_books(user_id, is_read=True, owned_books=owned_books)
-from website.models import db, UserBook, Book, Subject, UserSubject
 
 
 def delete_book(user_id, book_id):
@@ -148,7 +146,8 @@ def user_book_batch(user_id, book_ids, action):
 
     return True
 
-def user_book_deal(user_id,book):
+
+def user_book_deal(user_id, book):
     user_book = db.session.execute(
         db.select(UserBook)
         .where(UserBook.user_id == user_id,
