@@ -10,32 +10,35 @@ Watchlist
 {% block content %}
 
 
-    <h2 class="mb-4 text-center">
-        {%if is_read%}
-        📚 Your Books
-        {%else%}
-        📚 Your Watchlist
-        {%endif%}
-    </h2>
+<h2 class="mb-4 text-center">
+    {%if is_read%}
+    📚 Your Books
+    {%else%}
+    📚 Your Watchlist
+    {%endif%}
+</h2>
 
 
-    {% if result %}
+{% if result %}
 
 <div class="card bg-light mb-3 collapse show" id="infoCard">
     <div class="card-body text-center position-relative">
-        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-toggle="collapse" data-bs-target="#infoCard" aria-label="Close"></button>
+        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-toggle="collapse"
+                data-bs-target="#infoCard" aria-label="Close"></button>
 
         {% if is_read %}
-            All books added via CSV or by you will appear here. To stop getting recommendations based on these books, mark them as not interested.
+        All books added via CSV or by you will appear here. To stop getting recommendations based on these books, mark
+        them as not interested.
         {% else %}
-            <strong>Tip:</strong> Your watchlist helps improve future recommendations. Use the action buttons to refine!
+        <strong>Tip:</strong> Your watchlist helps improve future recommendations. Use the action buttons to refine!
         {% endif %}
     </div>
 </div>
 {% if not is_read%}
 <div class="card text-center border-success mb-4 shadow-sm collapse show" id="recCard">
     <div class="card-body position-relative">
-        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-toggle="collapse" data-bs-target="#recCard" aria-label="Close"></button>
+        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-toggle="collapse"
+                data-bs-target="#recCard" aria-label="Close"></button>
 
         <h5 class="card-title text-success">✔ Ready for more recommendations?</h5>
         <p class="card-text">Click below to refresh your watchlist with new curated books just for you.</p>
@@ -43,86 +46,85 @@ Watchlist
     </div>
 </div>
 {%endif%}
-    <form method="POST" action="{{ url_for('views.batch_book_action',state=state) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<form method="POST" action="{{ url_for('views.batch_book_action',state=state) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-        <div class="d-flex justify-content-between mb-3">
-            <div>
-                {%if not is_read%}
-                <button name="action" value="mark_read" class="btn btn-success btn-sm">✔ Mark as Read</button>
-                <button name="action" value="not_recommended" class="btn btn-secondary btn-sm">💔 Not Interested</button>
-                {%else %}
-                <button name="action" value="not_recommended" class="btn btn-secondary btn-sm">💔 Show fewer like this
-                </button>
+    <div class="d-flex justify-content-between mb-3">
+        <div>
+            {%if not is_read%}
+            <button name="action" value="mark_read" class="btn btn-success btn-sm">✔ Mark as Read</button>
+            <button name="action" value="not_recommended" class="btn btn-secondary btn-sm">💔 Not Interested</button>
+            {%else %}
+            <button name="action" value="not_recommended" class="btn btn-secondary btn-sm">💔 Show fewer like this
+            </button>
 
-                {%endif%}
-                <button name="action" value="delete" class="btn btn-danger btn-sm">✘ Delete</button>
-            </div>
-            <div>
-                <label><input type="checkbox" id="selectAll"> Select All</label>
-            </div>
+            {%endif%}
+            <button name="action" value="delete" class="btn btn-danger btn-sm">✘ Delete</button>
         </div>
-
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                <tr>
-                    <th scope="col"></th>
-                    <th scope="col">Title</th>
-                    <th scope="col">Author</th>
-                    <th scope="col">Link</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for item in result %}
-                <tr>
-                    <td>
-                        <input type="checkbox" name="book_ids" value="{{ item.book.id }}" class="book-checkbox">
-                    </td>
-                    <td>{{ item.book.title }}</td>
-                    <td>{{ item.book.author }}</td>
-                    <td>
-                        <a href="{{ item.book.link }}" class="btn btn-sm btn-outline-primary" target="_blank">🔗</a>
-                    </td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+        <div>
+            <label><input type="checkbox" id="selectAll"> Select All</label>
         </div>
-    </form>
+    </div>
 
-    <script>
-        // Select/Deselect All Checkboxes
-        document.getElementById("selectAll").addEventListener("click", function () {
-            const checkboxes = document.querySelectorAll(".book-checkbox");
-            checkboxes.forEach(cb => cb.checked = this.checked);
-        });
-    </script>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+            <tr>
+                <th scope="col"></th>
+                <th scope="col">Title</th>
+                <th scope="col">Author</th>
+                <th scope="col">Link</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for item in result %}
+            <tr>
+                <td>
+                    <input type="checkbox" name="book_ids" value="{{ item.book.id }}" class="book-checkbox">
+                </td>
+                <td>{{ item.book.title }}</td>
+                <td>{{ item.book.author }}</td>
+                <td>
+                    <a href="{{ item.book.link }}" class="btn btn-sm btn-outline-primary" target="_blank">🔗</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</form>
+
+<script>
+    // Select/Deselect All Checkboxes
+    document.getElementById("selectAll").addEventListener("click", function () {
+        const checkboxes = document.querySelectorAll(".book-checkbox");
+        checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+</script>
 
 
-    {% else %}
-    {%if is_read%}
-    <p class="text-center">📖 You haven’t added any books yet. Want better recommendations? Try importing your past reads or searching for books manually!</p>
-    {%else%}
-    <p class="text-center">Your watchlist is empty. Browse and add books to get started 📖</p>
-    {%endif%}
-
+{% else %}
 <div class="row text-center">
-
-<div class="col">
-<a href="{{url_for('views.search')}}">
-    <button class="btn btn-primary " type="button">
-        Search Books
-    </button>
-</a>
+    {%if is_read%}
+    <p class="text-center">📖 You haven’t added any books yet. Want better recommendations? Try importing your past reads
+        or searching for books manually!</p>
+    <div class="col">
+        <a href="{{url_for('views.account')}}">
+            <button class="btn btn-primary " type="button">
+                Import data
+            </button>
+        </a>
+    </div>
+    {%else%}
+    <p class="text-center">Your watchlist is empty. Get recommendations on based on your reading history. 📖</p>
+    <div class="col">
+        <a href="{{url_for('views.get_recs')}}">
+            <button class="btn btn-primary " type="button">
+                Get Recommendations
+            </button>
+        </a>
+    </div>
+    {%endif%}
 </div>
-<div class="col">
-
-<a href="{{url_for('views.account')}}">
-    <button class="btn btn-primary " type="button">
-        Import data
-    </button>
-</a>
-</div></div>
-    {% endif %}
+{% endif %}
 {% endblock %}
