@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{%block title%}
+Search
+{%endblock%}
 {% block content %}
 <form method="GET" action="{{ url_for('views.search') }}" class="mb-4" id="searchForm">
     <div class="input-group input-group-lg">

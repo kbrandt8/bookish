@@ -1,4 +1,12 @@
 {% extends "base.html" %}
+{%block title%}
+
+{%if is_read%}
+Your Books
+{%else%}
+Watchlist
+{%endif%}
+{%endblock%}
 {% block content %}
 
 
