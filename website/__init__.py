@@ -23,7 +23,14 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLDB")
     app.secret_key = os.getenv('SECRET_KEY')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+        "pool_size": 5,
+        "max_overflow": 10,
+    }
     db.init_app(app)
     CORS(app)
     csrf = CSRFProtect(app)
