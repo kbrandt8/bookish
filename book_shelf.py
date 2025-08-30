@@ -17,6 +17,13 @@ class BookShelf:
              'Edition': book.get("edition_key", [''])[0]}
             for book in result.get("docs", [])]
 
+    def update_recs(self,user_id):
+        self.sort_subjects(user_id)
+        self.get_subjects(user_id)
+        self.search_subjects_bulk()
+        self.sort_books()
+        self.add_books(user_id)
+
     def is_new_user(self, user_id: int) -> bool:
         return not db.session.query(
             db.exists().where(UserSubject.user_id == user_id)
@@ -66,7 +73,7 @@ class BookShelf:
                 subject_counts[name] = subject_counts.get(name, 0) + 1
 
         sorted_subjects = sorted(subject_counts.items(), key=lambda item: item[1], reverse=True)
-        top_subjects = [subject for subject, count in sorted_subjects[:20]]
+        top_subjects = [subject for subject, count in sorted_subjects[:10]]
         self.subjects = top_subjects
         return top_subjects
 
@@ -168,7 +175,7 @@ class BookShelf:
                 continue
             book_list.append(book)
             seen.add(identifier)
-            self.recommendations = sorted(book_list, key=lambda b: len(b["shared_subjects"]), reverse=True)[:15]
+            self.recommendations = sorted(book_list, key=lambda b: len(b["shared_subjects"]), reverse=True)[:5]
         for book in self.recommendations:
             print(book['Title'])
 

@@ -148,44 +148,9 @@ def login():
 @login_required
 def get_recs():
     user_id = current_user.id
-    app = current_app._get_current_object()
-    recommendation_status[user_id] = {"ready": False, "msg": "Initializing...", "progress": 0}
     shelf = BookShelf()
     if not shelf.is_new_user(user_id):
-        def run_task():
-            with app.app_context():
-                try:
-
-                    def update_status(message, progress):
-                        recommendation_status[user_id].update(msg=message, progress=progress)
-
-                    update_status("📚 Analyzing your books...", 10)
-                    shelf.sort_subjects(user_id)
-
-                    update_status("📘 Gathering your preferred subjects...", 25)
-                    shelf.get_subjects(user_id)
-
-                    update_status("🔍 Searching OpenLibrary by subject...", 50)
-                    shelf.search_subjects_bulk()
-
-                    update_status("📊 Sorting your best matches...", 75)
-                    shelf.sort_books()
-
-                    update_status("💾 Saving recommendations to your watchlist...", 90)
-                    shelf.add_books(user_id)
-
-                    update_status("✅ Complete!", 100)
-                    recommendation_status[user_id].update(ready=True)
-
-                except Exception as e:
-                    print(f"Error during recommendation task: {e}")
-                    recommendation_status[user_id] = {
-                        "ready": True,
-                        "msg": "An error occurred. Please try again.",
-                        "progress": 100
-                    }
-
-        Thread(target=run_task).start()
+        run_in_thread(lambda: shelf.update_recs(user_id))
         return render_template("loading.html")
     else:
         flash("Please add books so we can find your recommendations")
