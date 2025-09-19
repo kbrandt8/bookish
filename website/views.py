@@ -1,5 +1,7 @@
 from threading import Thread
-
+from dotenv import load_dotenv
+import os
+import requests
 from flask import Blueprint, render_template, redirect, url_for, flash, jsonify
 from flask import current_app
 from flask import request
@@ -13,9 +15,11 @@ from .models import User, db, UserBook
 from .services.user_service import register_new_user, validate_login, add_user_books, user_book_batch, update_email, \
     update_password, update_name
 
+load_dotenv()
+
 views = Blueprint('views', __name__)
 login_manager = LoginManager()
-recommendation_status = {}
+CLOUD_FUNCTION_URL = os.getenv("CLOUD_FUNCTION_URL")
 
 
 def run_in_thread(func):
@@ -137,6 +141,7 @@ def login():
         user = validate_login(form.email.data.lower(), form.password.data)
         if user:
             login_user(user)
+            flash("Getting your recommendations ready!")
             return redirect(url_for('views.home'))
         else:
             flash("Please check credentials!")
@@ -150,8 +155,10 @@ def get_recs():
     user_id = current_user.id
     shelf = BookShelf()
     if not shelf.is_new_user(user_id):
-        run_in_thread(lambda: shelf.update_recs(user_id))
-        return render_template("loading.html")
+        global CLOUD_FUNCTION_URL
+        run_in_thread(lambda:requests.get(CLOUD_FUNCTION_URL, params={"user_id": user_id,"action":"update_recs"}, timeout=60))
+        flash("Getting your recommendations, check back in a few minutes...")
+        return redirect(url_for("views.home"))
     else:
         flash("Please add books so we can find your recommendations")
         return render_template("search.html")
@@ -175,28 +182,16 @@ def deals():
     has_watched_books = UserBook.query.filter_by(user_id=user, is_recommended=True, is_read=False).first()
     if request.method == "POST":
         flash("Checking for deals on your unread books!", "success")
-        check_deals = db.session.execute(
-            db.select(UserBook)
-            .where(
-                UserBook.user_id == user,
-                UserBook.is_recommended == True,
-                UserBook.is_read == False,
-            ).options(db.joinedload(UserBook.book))
-        ).scalars().all()
-        run_in_thread(lambda: BookDeal(user, check_deals))
+        global CLOUD_FUNCTION_URL
+        user_id = current_user.id
+        run_in_thread(
+            lambda: requests.get(CLOUD_FUNCTION_URL, params={"user_id": user_id, "action": "update_deals"}, timeout=60))
         return render_template("deals.html",has_watched_books=has_watched_books,
                                result=result, csrf_token=generate_csrf())
     else:
         return render_template("deals.html", has_watched_books=has_watched_books,
                                result=result, csrf_token=generate_csrf())
 
-
-@views.route("/recommendation_status")
-@login_required
-def recommendation_status_check():
-    user_id = current_user.id
-    status = recommendation_status.get(user_id, {"ready": False, "msg": "Waiting...", "progress": 0})
-    return jsonify(status)
 
 
 @views.route("/results", methods=["POST", "GET"])
@@ -248,8 +243,17 @@ def account():
 
     if form_name == "Upload" and csv_form.validate_on_submit():
         file = request.files["file"]
-        source = request.form.get("data_type")
-        run_in_thread(lambda: add_user_books(user_id, file, source))
+        source = request.form.get("data_type","gr")
+        global CLOUD_FUNCTION_URL
+        user_id = current_user.id
+        run_in_thread(
+            lambda: requests.post(
+            CLOUD_FUNCTION_URL,
+            params={"user_id": user_id, "action": "upload_csv"},
+            files={"file": (file.filename, file.stream, file.mimetype)},
+            data={"data_type": source},
+            timeout=60
+        ))
         flash("Books are being processed...", "info")
 
     elif form_name == "Update Email" and email_form.validate_on_submit():
