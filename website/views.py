@@ -143,7 +143,6 @@ def login():
         user = validate_login(form.email.data.lower(), form.password.data)
         if user:
             login_user(user)
-            flash("Getting your recommendations ready!")
             return redirect(url_for('views.home'))
         else:
             flash("Please check credentials!")
