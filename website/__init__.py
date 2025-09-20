@@ -10,7 +10,7 @@ from flask_login import LoginManager
 from sqlalchemy.orm import DeclarativeBase
 from .views import views
 
-from .models import User, Book, db,Subject,UserBook
+from functions.models import User, Book, db,Subject,UserBook
 
 
 class Base(DeclarativeBase):

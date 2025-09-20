@@ -20,7 +20,6 @@ class UserInfo:
         mapping = field_map[source]
 
         try:
-            # Read file in-memory
             stream = StringIO(file_storage.stream.read().decode("utf-8", errors="ignore"))
             reader = csv.DictReader(stream)
 

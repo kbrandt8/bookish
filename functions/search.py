@@ -32,5 +32,5 @@ class Search:
                 data = await res.json()
                 self.results_raw.append(data)
         except Exception as e:
-            print(f"Error fetching: {e}")
+            print(f"Error fetching {url} : {e}")
             return

@@ -8,12 +8,13 @@ from flask import request
 from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from flask_wtf.csrf import generate_csrf
 
-from book_deals import BookDeal
-from book_shelf import BookShelf
+
 from .forms import LoginForm, RegisterForm, UploadForm, EmailForm, PasswordForm, NameForm
-from .models import User, db, UserBook
-from .services.user_service import register_new_user, validate_login, add_user_books, user_book_batch, update_email, \
-    update_password, update_name
+from functions.models import User, db, UserBook
+from .services.user_services import register_new_user, validate_login, update_email, \
+    update_password, update_name, is_new_user
+from .services.db_services import user_book_batch
+from .services.search_services import add_open_library_book,search_openlibrary_books
 
 load_dotenv()
 
@@ -77,10 +78,9 @@ def search():
     page_range = range(0, 1)
 
     csrf_token = generate_csrf()
-    shelf = BookShelf()
     if query:
         try:
-            search_results = shelf.search_openlibrary_books(search_type, query, page)
+            search_results = search_openlibrary_books(search_type, query, page)
             total_pages = int(int(search_results['num_found']) / 100)
             page_min = max(page - 5, 1)
             page_max = min(page + 5, total_pages)
@@ -107,8 +107,7 @@ def add_openlibrary_book():
     if not (title and author):
         flash("Missing title or author.")
         return redirect(url_for("views.search"))
-    shelf = BookShelf()
-    shelf.add_open_library_book(current_user.id, request.form)
+    add_open_library_book(current_user.id, request.form)
     msg = f"📚 '{title}' added"
 
     if is_read:
@@ -153,8 +152,7 @@ def login():
 @login_required
 def get_recs():
     user_id = current_user.id
-    shelf = BookShelf()
-    if not shelf.is_new_user(user_id):
+    if not is_new_user(user_id):
         global CLOUD_FUNCTION_URL
         run_in_thread(lambda:requests.get(CLOUD_FUNCTION_URL, params={"user_id": user_id,"action":"update_recs"}, timeout=60))
         flash("Getting your recommendations, check back in a few minutes...")
