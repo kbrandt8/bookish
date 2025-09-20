@@ -118,7 +118,10 @@ def add_openlibrary_book():
         msg += " to your watchlist ➕"
 
     flash(msg)
-    return redirect(url_for("views.search", q=request.args.get("q", "")))
+    if request.referrer:
+        return redirect(request.referrer)
+    else:
+        return redirect(url_for("views.search", q=""))
 
 
 @views.route("/register", methods=['GET', 'POST'])
